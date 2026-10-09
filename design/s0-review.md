@@ -111,7 +111,7 @@ Fixes:
 ## Checked, no problem
 
 - Performance: one synchronous read per open; render on the main actor (cmark is fast); no loops over large data.
-- Security: page JS off; CSP blocks frame, object, form, base (frame confirmed by smoke run); all non-shell navigations cancelled; handler serves two fixed resources only; dependency pinned by revision.
+- Security: page JS off; CSP blocks frame, object, form, base (frame confirmed by smoke run); all non-shell navigations canceled; handler serves two fixed resources only; dependency pinned by revision.
 - Concurrency: `RenderQueue` generation check verified by red/green tests; stale completions do not mutate state.
 - `marked.js`: errors use `textContent`; `render` never rejects (checked by node test and smoke run).
 

@@ -83,7 +83,7 @@ Sliced design: 8 slices. S0 first. S1–S7 run as parallel streams after S0, one
 | S5 | Mermaid | ` ```mermaid ` → diagram. Bad diagram → error + source. Offline. Checks: flowchart arrowheads (`url(#marker)`) render; fixture with one good, one syntax-bad, one render-bad diagram → good renders, both bad show source + error, later phases still run | `vendor/mermaid.min.js`, `js/mermaid-hook.js`, `WebView` |
 | S6 | Links | Web link → browser. `.md` link → new window. `#anchor` → in-page | `WebView` coordinator (nav delegate), `js/anchors.js` |
 
-Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6. After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialisation), and JS world; no slice edits another slice's behaviour. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
+Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6. After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialization), and JS world; no slice edits another slice's behavior. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
 
 ### Module seams (why parallel works)
 
@@ -91,7 +91,7 @@ Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6. Aft
 - JS per feature = own file, registered as hook in a named phase; `marked.js` render pipeline frozen after S0
 - `WebView.userScripts` = array; each slice appends one line
 - Frontmatter trick: replace frontmatter lines with blank lines before cmark → cmark sourcepos stays absolute → S1 scroll needs no frontmatter knowledge. Prepend `<pre class="frontmatter" data-sourcepos="1:1-N:1">`
-- Mermaid: cmark emits `<pre data-sourcepos><code class="language-mermaid">`; JS hook replaces it with `<div class="mermaid" data-sourcepos=…>` (copies the attribute) holding the SVG. Per node, sequentially: `try { const {svg} = await mermaid.render(uniqueId, src); wrapper.innerHTML = svg } catch (e) { keep <pre> source + error note }`. Covers parse and layout/SVG failures alike; hook never rejects; one diagram at a time (no shared temp-id clash). No `mermaid.run`. S5 confirms behaviour on the pinned version No Swift renderer change → no S4 conflict
+- Mermaid: cmark emits `<pre data-sourcepos><code class="language-mermaid">`; JS hook replaces it with `<div class="mermaid" data-sourcepos=…>` (copies the attribute) holding the SVG. Per node, sequentially: `try { const {svg} = await mermaid.render(uniqueId, src); wrapper.innerHTML = svg } catch (e) { keep <pre> source + error note }`. Covers parse and layout/SVG failures alike; hook never rejects; one diagram at a time (no shared temp-id clash). No `mermaid.run`. S5 confirms behavior on the pinned version No Swift renderer change → no S4 conflict
 - Find skips text inside mermaid `<svg>`
 
 ### S6 navigation rules (`decidePolicyFor navigationAction`)
@@ -108,7 +108,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 ### S1 change rules (tested in `LineDiffTests` + manual)
 
 - `LineDiff.firstChangedLine(old, new) -> Int?`: 1-based first line where line arrays differ; equal prefix but different length → `min(count)+1`; identical → `nil` (no scroll, no flash)
-- Whitespace-only changes count as changes (no normalising)
+- Whitespace-only changes count as changes (no normalizing)
 - Scroll target (JS): deepest element whose `data-sourcepos` range contains the line; none (pure deletion, blank line) → first block starting after it; none after → last block
 - Edit inside frontmatter → frontmatter `<pre>` (has `data-sourcepos`)
 - First render of a window → no scroll, no flash; only reloads scroll
