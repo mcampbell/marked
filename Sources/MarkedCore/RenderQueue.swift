@@ -6,6 +6,13 @@ public final class RenderQueue {
     private let render: (String) -> String
     private let send: (String, Int?) async throws -> RenderResult
 
+    private var ready = false
+    private var inFlight = false
+    private var generation = 0
+    private var pending: String?
+    private var latest: String?
+    private var lastRendered: String?
+
     public init(
         render: @escaping (String) -> String,
         send: @escaping (String, Int?) async throws -> RenderResult
@@ -14,7 +21,44 @@ public final class RenderQueue {
         self.send = send
     }
 
-    public func submit(_ source: String) {}
-    public func markReady() {}
-    public func shellWillReload() {}
+    public func submit(_ source: String) {
+        latest = source
+        pending = source
+        pump()
+    }
+
+    public func markReady() {
+        ready = true
+        pump()
+    }
+
+    public func shellWillReload() {
+        generation += 1
+        inFlight = false
+        ready = false
+        lastRendered = nil
+        pending = latest
+    }
+
+    private func pump() {
+        guard ready, !inFlight, let source = pending else { return }
+        pending = nil
+        inFlight = true
+        let gen = generation
+        let line = lastRendered.flatMap { changedLine($0, source) }
+        let html = render(source)
+        Task { @MainActor in
+            do {
+                _ = try await send(html, line)
+                guard gen == generation else { return }
+                lastRendered = source
+                inFlight = false
+            } catch {
+                guard gen == generation else { return }
+                inFlight = false
+                onFailure(error)
+            }
+            pump()
+        }
+    }
 }
