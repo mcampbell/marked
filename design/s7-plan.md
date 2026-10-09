@@ -65,9 +65,9 @@ public enum ImageStamp {
 
 ### W7 — stubs (sequential, main loop)
 
-- [ ] W7.1 Branch `s7-images` from `s1-live`
-- [ ] W7.2 Add the frozen API above with placeholder bodies: `imageExtensions` real set; `imageFile` → `nil`; `contentType` → `"application/octet-stream"`; `ImageStamp.apply` → returns `html` unchanged
-- [ ] W7.3 `make test` green → commit → fork worktrees
+- [x] W7.1 Branch `s7-images` from `s1-live`
+- [x] W7.2 Add the frozen API above with placeholder bodies: `imageExtensions` real set; `imageFile` → `nil`; `contentType` → `"application/octet-stream"`; `ImageStamp.apply` → returns `html` unchanged
+- [x] W7.3 `make test` green → commit → fork worktrees
 
 ### T1 — serve rule + MIME (builder)
 

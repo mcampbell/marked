@@ -32,4 +32,26 @@ public enum DocURL {
         guard url.scheme == scheme, url.host == docHost else { return nil }
         return URLComponents(url: url, resolvingAgainstBaseURL: false)?.path
     }
+
+    public static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico", "svg"]
+
+    /// Resolved path to serve for a `marked://doc/...` request, or nil → 403. W7 stub.
+    public static func imageFile(for url: URL, probe: (String) -> FileInfo?) -> String? {
+        nil
+    }
+
+    /// W7 stub.
+    public static func contentType(forPath path: String) -> String {
+        "application/octet-stream"
+    }
+}
+
+public struct FileInfo: Equatable, Sendable {
+    public let resolvedPath: String
+    public let isRegularFile: Bool
+    // Explicit public init: synthesized memberwise inits are internal, and the app target builds this.
+    public init(resolvedPath: String, isRegularFile: Bool) {
+        self.resolvedPath = resolvedPath
+        self.isRegularFile = isRegularFile
+    }
 }
