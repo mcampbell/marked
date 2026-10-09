@@ -5,17 +5,19 @@ import MarkedCore
 struct WebView: NSViewRepresentable {
     let fileURL: URL?
     @Binding var failure: String?
+    @Binding var banner: String?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> WKWebView {
         let c = context.coordinator
         c.setFailure = { [failure = $failure] in failure.wrappedValue = $0 }
+        c.setBanner = { [banner = $banner] in banner.wrappedValue = $0 }
         let cfg = WKWebViewConfiguration()
         cfg.defaultWebpagePreferences.allowsContentJavaScript = false
         cfg.setURLSchemeHandler(SchemeHandler(), forURLScheme: DocURL.scheme)
-        // S0 entry only; later streams append.
-        let scripts: [String] = [Self.resource("marked", "js")]
+        // Later slices append their scripts here.
+        let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
@@ -27,6 +29,10 @@ struct WebView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {}
+
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+        coordinator.stop()
+    }
 
     static func resource(_ name: String, _ ext: String, subdirectory: String? = nil) -> String {
         String(decoding: Bundle.main.requiredResource(name, ext, subdirectory: subdirectory), as: UTF8.self)
@@ -41,7 +47,12 @@ struct WebView: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
         var setFailure: (String?) -> Void = { _ in }
         private var queue: RenderQueue?
+        var setBanner: (String?) -> Void = { _ in }
+        private var watcher: FileWatcher?
+        private var hasRendered = false
         private var shell: URL?
+
+        func stop() { watcher?.stop() }
 
         func start(_ web: WKWebView, fileURL: URL?) {
             let shell = DocURL.shellURL(forDocument: fileURL ?? URL(fileURLWithPath: "/untitled.md"))
@@ -58,20 +69,28 @@ struct WebView: NSViewRepresentable {
                 self?.setFailure(nil)   // bridge works again; hook errors show in the page
                 return RenderResult(ok: ok, errors: errors)
             }
+            queue.changedLine = LineDiff.firstChangedLine
             self.queue = queue
             queue.onFailure = { [weak self] err in
                 NSLog("Marked render failed: \(err)")
                 self?.setFailure("\(err)")
             }
             web.load(URLRequest(url: shell))
-            if let fileURL {
-                switch FileWatcher.read(fileURL) {
-                case .success(let text): queue.submit(text)
-                case .failure(let e): queue.submit("**Cannot display:** \(e)")
+            guard let fileURL else { setBanner("⚠ No file"); return }
+            let w = FileWatcher(url: fileURL) { [weak self] ev in
+                guard let self else { return }
+                switch ev {
+                case .text(let t):
+                    hasRendered = true
+                    queue.submit(t)
+                case .error(let m):
+                    setBanner(hasRendered ? "⚠ \(m) — showing the last good version" : "⚠ \(m)")
+                case .cleared:
+                    setBanner(nil)
                 }
-            } else {
-                queue.submit("**Cannot display:** no file")
             }
+            watcher = w
+            w.start()
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

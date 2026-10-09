@@ -86,33 +86,33 @@ extension Bundle { func requiredResource(_ name: String, _ ext: String, subdirec
 
 ### Q1 — LineDiff (builder)
 
-- [ ] Q1.1 Tests first (no `import Foundation`): identical → `nil`; change on line 1 → 1; change on line 5 of 10 → 5; append → `old.count + 1`; delete last line → `new.count + 1`; whitespace-only change → its line; `""` → `"a"` → 1; trailing-newline-only change → the line after the last; CRLF vs LF counts as change; **same-style CRLF edit**: `"a\r\nb\r\nc"` → `"a\r\nx\r\nc"` → 2 (Swift treats `\r\n` as one `Character`, so a `Character` split would see one line)
-- [ ] Q1.2 Implement: split the **UTF-8 bytes** on LF, keeping empties (`text.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)`); never split `String`/`Character` on `"\n"` (CRLF is one `Character`). Each line keeps its trailing `\r`, so CRLF vs LF still differ. First differing index + 1, else `min(count) + 1` when counts differ, else `nil`. Reproduced 2026-10-09: `Character` split → 1 line; UTF-8 split → 3 lines, first diff 2
+- [x] Q1.1 Tests first (no `import Foundation`): identical → `nil`; change on line 1 → 1; change on line 5 of 10 → 5; append → `old.count + 1`; delete last line → `new.count + 1`; whitespace-only change → its line; `""` → `"a"` → 1; trailing-newline-only change → the line after the last; CRLF vs LF counts as change; **same-style CRLF edit**: `"a\r\nb\r\nc"` → `"a\r\nx\r\nc"` → 2 (Swift treats `\r\n` as one `Character`, so a `Character` split would see one line)
+- [x] Q1.2 Implement: split the **UTF-8 bytes** on LF, keeping empties (`text.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)`); never split `String`/`Character` on `"\n"` (CRLF is one `Character`). Each line keeps its trailing `\r`, so CRLF vs LF still differ. First differing index + 1, else `min(count) + 1` when counts differ, else `nil`. Reproduced 2026-10-09: `Character` split → 1 line; UTF-8 split → 3 lines, first diff 2
 
 ### Q2 — WatchState + FileWatcher (builder)
 
-- [ ] Q2.1 Tests first (fake `read` closure counting calls; no `import Foundation`): first `present` → read → `[.text]`; same stamp → no read, `[]`; new stamp, same text → read, `[]`; new stamp, new text → `[.text]`; read failure → `[.error(msg)]`; same failure on next new stamp → `[]`; failure then **same stamp** next poll → read retried (call count +1), still failing → `[]`, then succeeding → `[.cleared, .text]`; after a success, same stamp → no read; recovery → `[.cleared, .text]` (or `[.cleared]` if text unchanged); one `missing` → `[]`; two consecutive `missing` → `[.error("File not found")]`; `missing` then `present` (atomic save) → read, no error; error then `present` → `.cleared`
-- [ ] Q2.2 Implement `WatchState.step` per the tests and "Own decisions"
-- [ ] Q2.3 `FileWatcher`: `Timer` (weak self) every `interval`; probe via `FileManager.default.attributesOfItem(atPath:)` → `Stamp(mtime: modificationDate.timeIntervalSince1970, size:)`, any throw → `.missing`; `read` closure maps `ReadError` → `ReadFailure(message: description)`; forward events to `onEvent`. `stop()` invalidates the timer
+- [x] Q2.1 Tests first (fake `read` closure counting calls; no `import Foundation`): first `present` → read → `[.text]`; same stamp → no read, `[]`; new stamp, same text → read, `[]`; new stamp, new text → `[.text]`; read failure → `[.error(msg)]`; same failure on next new stamp → `[]`; failure then **same stamp** next poll → read retried (call count +1), still failing → `[]`, then succeeding → `[.cleared, .text]`; after a success, same stamp → no read; recovery → `[.cleared, .text]` (or `[.cleared]` if text unchanged); one `missing` → `[]`; two consecutive `missing` → `[.error("File not found")]`; `missing` then `present` (atomic save) → read, no error; error then `present` → `.cleared`
+- [x] Q2.2 Implement `WatchState.step` per the tests and "Own decisions"
+- [x] Q2.3 `FileWatcher`: `Timer` (weak self) every `interval`; probe via `FileManager.default.attributesOfItem(atPath:)` → `Stamp(mtime: modificationDate.timeIntervalSince1970, size:)`, any throw → `.missing`; `read` closure maps `ReadError` → `ReadFailure(message: description)`; forward events to `onEvent`. `stop()` invalidates the timer
 
 ### Q3 — scroll.js (builder)
 
-- [ ] Q3.1 Node test first (`Tests/js/scroll.test.mjs`, `node:test` + `node:assert`): `pickTarget` — line inside one block → it; nested (list in list item) → deepest (last container in document order); line in a gap (blank / deleted) → first block starting after it; past the end → last block; empty ranges → -1; frontmatter range `1:1-4:1` with line 2 → it
-- [ ] Q3.2 `scroll.js`: parse `data-sourcepos` of `#content [data-sourcepos]`; `changedLine == null` → return (first render, identical); else `pickTarget` → `scrollIntoView({block: "center", behavior: "smooth"})` + `el.animate([{background: "#fff3a0"}, {background: "transparent"}], {duration: 1200})`. Export `pickTarget` for node via `if (typeof module !== "undefined") module.exports = { pickTarget }` (or a `globalThis` guard the test reads); browser path must not throw without `module`
+- [x] Q3.1 Node test first (`Tests/js/scroll.test.mjs`, `node:test` + `node:assert`): `pickTarget` — line inside one block → it; nested (list in list item) → deepest (last container in document order); line in a gap (blank / deleted) → first block starting after it; past the end → last block; empty ranges → -1; frontmatter range `1:1-4:1` with line 2 → it
+- [x] Q3.2 `scroll.js`: parse `data-sourcepos` of `#content [data-sourcepos]`; `changedLine == null` → return (first render, identical); else `pickTarget` → `scrollIntoView({block: "center", behavior: "smooth"})` + `el.animate([{background: "#fff3a0"}, {background: "transparent"}], {duration: 1200})`. Export `pickTarget` for node via `if (typeof module !== "undefined") module.exports = { pickTarget }` (or a `globalThis` guard the test reads); browser path must not throw without `module`
 - [x] Q3.3 `Makefile`: `test` runs Swift tests, then `node --test Tests/js` when the dir exists and `node` is found (done in S0 baseline). `make app` already copies `Resources/js/`
 
 ### Q4 — wiring (builder)
 
-- [ ] Q4.1 `WebView`: append `resource("scroll", "js", subdirectory: "js")` to `userScripts`; `queue.changedLine = LineDiff.firstChangedLine`
-- [ ] Q4.2 Move read out of `Coordinator.start` (S0 review coupling note): coordinator owns `FileWatcher(url:) { event in … }`: `.text` → `queue.submit`, `.error(m)` → banner `m`, `.cleared` → banner `nil`. `start()` after shell load. No file URL → banner "No file"
-- [ ] Q4.3 `dismantleNSView(_:coordinator:)` → `coordinator.stop()` → `watcher.stop()` (no timer after window close)
-- [ ] Q4.4 `ReaderView`: `@State banner: String?`, bound into `WebView`; red bar at top (`.safeAreaInset(edge: .top)`) "⚠ \(msg) — showing the last good version" (or "⚠ \(msg)" when nothing rendered yet). Subtitle logic unchanged
-- [ ] Q4.5 `make app` builds; launch shows the fixture via the W1 one-shot `FileWatcher` stub (no polling, no scroll yet: Q1–Q3 still placeholders)
+- [x] Q4.1 `WebView`: append `resource("scroll", "js", subdirectory: "js")` to `userScripts`; `queue.changedLine = LineDiff.firstChangedLine`
+- [x] Q4.2 Move read out of `Coordinator.start` (S0 review coupling note): coordinator owns `FileWatcher(url:) { event in … }`: `.text` → `queue.submit`, `.error(m)` → banner `m`, `.cleared` → banner `nil`. `start()` after shell load. No file URL → banner "No file"
+- [x] Q4.3 `dismantleNSView(_:coordinator:)` → `coordinator.stop()` → `watcher.stop()` (no timer after window close)
+- [x] Q4.4 `ReaderView`: `@State banner: String?`, bound into `WebView`; red bar at top (`.safeAreaInset(edge: .top)`) "⚠ \(msg) — showing the last good version" (or "⚠ \(msg)" when nothing rendered yet). Subtitle logic unchanged
+- [x] Q4.5 `make app` builds; launch shows the fixture via the W1 one-shot `FileWatcher` stub (no polling, no scroll yet: Q1–Q3 still placeholders)
 
 ### I1 — integrate + checks (sequential, main loop)
 
-- [ ] I1.1 Merge Q1–Q4; `make test` (Swift + JS); `make install`
-- [ ] I1.2 Live checks with a temporary env-guarded harness (not committed), fixture `~/tmp/marked fixtures/a b/doc.md`:
+- [x] I1.1 Merge Q1–Q4; `make test` (Swift + JS); `make install`
+- [x] I1.2 Live checks (2026-10-09, all pass except "close window → watcher stopped": needs GUI scripting, not verified; `dismantleNSView` → `watcher.stop()` is in place) with a temporary env-guarded harness (not committed), fixture `~/tmp/marked fixtures/a b/doc.md`:
   - first open → `scrollY == 0`, no flash
   - append a paragraph at the end with `printf >>` → within 1s content updated; after a further 1s (smooth scroll settles) `scrollY > 0`, target element is the new paragraph
   - atomic save (`write tmp && mv tmp doc.md`) editing line 3 → updated, scrolled near top, no banner at any poll
