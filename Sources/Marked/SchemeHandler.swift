@@ -33,9 +33,10 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
 
 extension Bundle {
     /// A missing resource means a broken bundle, so fail loud instead of showing a blank page.
-    func requiredResource(_ name: String, _ ext: String) -> Data {
-        guard let url = url(forResource: name, withExtension: ext), let data = try? Data(contentsOf: url) else {
-            preconditionFailure("Marked.app is missing Resources/\(name).\(ext)")
+    func requiredResource(_ name: String, _ ext: String, subdirectory: String? = nil) -> Data {
+        guard let url = url(forResource: name, withExtension: ext, subdirectory: subdirectory),
+              let data = try? Data(contentsOf: url) else {
+            preconditionFailure("Marked.app is missing Resources/\(subdirectory.map { "\($0)/" } ?? "")\(name).\(ext)")
         }
         return data
     }

@@ -28,8 +28,8 @@ struct WebView: NSViewRepresentable {
 
     func updateNSView(_ nsView: WKWebView, context: Context) {}
 
-    static func resource(_ name: String, _ ext: String) -> String {
-        String(decoding: Bundle.main.requiredResource(name, ext), as: UTF8.self)
+    static func resource(_ name: String, _ ext: String, subdirectory: String? = nil) -> String {
+        String(decoding: Bundle.main.requiredResource(name, ext, subdirectory: subdirectory), as: UTF8.self)
     }
 
     struct BridgeError: Error, CustomStringConvertible {

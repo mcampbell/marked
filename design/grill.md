@@ -36,4 +36,4 @@
 - D21 (user) Local use only, never App Store. Ad-hoc signing, `com.example.Marked`. No root at any phase of build/run; install to `~/Applications` + per-user `lsregister`
 - D22 (user) S1: banner after 2 missing polls; smooth scroll; flash `#fff3a0` 1.2s; node optional for JS tests
 - D23 (user) `==` must render literally inside code blocks and inline code (Marked 2 bug: shows it as highlight). Pinned by HTMLRendererTests
-- D24 (user wants `==text==` highlight outside code eventually; author decision) New slice S8: JS `transform` hook, never inside code; no Swift renderer change (avoids S4 conflict); after S1
+- D24 (user wants `==text==` highlight outside code eventually; author decision) New slice S8: JS `transform` hook, never inside code; no Swift renderer change (avoids S4 conflict); depends only on S0

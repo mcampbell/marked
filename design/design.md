@@ -83,9 +83,9 @@ Sliced design: 9 slices. S0 first. S1–S8 run as parallel streams after S0, one
 | S4 | Frontmatter | Line-1 `---` block → verbatim monospace block, any style | `Frontmatter`, `HTMLRenderer`, `base.css` |
 | S5 | Mermaid | ` ```mermaid ` → diagram. Bad diagram → error + source. Offline. Checks: flowchart arrowheads (`url(#marker)`) render; fixture with one good, one syntax-bad, one render-bad diagram → good renders, both bad show source + error, later phases still run | `vendor/mermaid.min.js`, `js/mermaid-hook.js`, `WebView` |
 | S6 | Links | Web link → browser. `.md` link → new window. `#anchor` → in-page | `WebView` coordinator (nav delegate), `js/anchors.js` |
-| S8 | Highlight | `==text==` outside code → `<mark>text</mark>`. Literal inside `pre`, `code`, `kbd`, `samp` (Marked 2 bug, D23). Needs S1 (node test target, `requiredResource(subdirectory:)`) | `js/highlight.js`, `Tests/js/highlight.test.mjs`, `WebView.userScripts` (one line) |
+| S8 | Highlight | `==text==` outside code → `<mark>text</mark>`. Literal inside `pre`, `code`, `kbd`, `samp` (Marked 2 bug, D23). Shared helper + node test step are in the S0 baseline, so no prerequisite beyond S0 | `js/highlight.js`, `Tests/js/highlight.test.mjs`, `WebView.userScripts` (one line) |
 
-Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6 → S8 (S8 can start any time after S1). After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialization), and JS world; no slice edits another slice's behavior. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
+Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6 → S8. Every slice can start right after S0: the shared `requiredResource(subdirectory:)` and the Makefile node test step live in the S0 baseline. After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialization), and JS world; no slice edits another slice's behavior. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
 
 ### Module seams (why parallel works)
 
