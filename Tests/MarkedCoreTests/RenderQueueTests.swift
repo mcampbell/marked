@@ -155,3 +155,165 @@ func make(_ f: FakeSend) -> RenderQueue {
         #expect(c.seen == ["B"] && c.failures == 0)
     }
 }
+
+@MainActor
+final class FakeStyle {
+    var events: [String] = []
+    var styles: [String] = []
+    var waiting: [CheckedContinuation<Void, Error>] = []
+    var applied = 0
+    var styleFailures = 0
+    var renderFailures = 0
+
+    func sendStyle(_ css: String) async throws {
+        events.append("style:\(css)")
+        styles.append(css)
+        try await withCheckedThrowingContinuation { waiting.append($0) }
+    }
+}
+
+@MainActor
+func makeStyled(_ f: FakeSend, _ s: FakeStyle) -> RenderQueue {
+    let q = RenderQueue(render: { "<\($0)>" }, send: { h, l in
+        s.events.append("render:\(h)")
+        return try await f.send(h, l)
+    })
+    q.sendStyle = { try await s.sendStyle($0) }
+    q.onStyleApplied = { s.applied += 1 }
+    q.onStyleFailure = { _ in s.styleFailures += 1 }
+    q.onFailure = { _ in s.renderFailures += 1 }
+    return q
+}
+
+@MainActor
+@Suite struct RenderQueueStyleTests {
+    @Test func styleBeforeReadyNotSent() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); await settle()
+        #expect(s.events.isEmpty)
+    }
+
+    @Test func styleSentBeforeRender() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.submit("x"); q.markReady(); await settle()
+        #expect(s.events == ["style:A"])
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.events == ["style:A", "render:<x>"])
+    }
+
+    @Test func submitWhileStyleInFlightWaits() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.markReady(); await settle()
+        q.submit("x"); q.submit("y"); await settle()
+        #expect(s.events == ["style:A"])
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.events == ["style:A", "render:<y>"])
+    }
+
+    @Test func twoStylesBeforeReadyOnlyLatest() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.setStyle("B"); q.markReady(); await settle()
+        #expect(s.styles == ["B"])
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.styles == ["B"])
+    }
+
+    @Test func styleWaitsForRenderInFlight() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.markReady(); q.submit("x"); await settle()
+        q.setStyle("A"); await settle()
+        #expect(s.events == ["render:<x>"])
+        f.waiting.removeFirst().resume(returning: ok); await settle()
+        #expect(s.events == ["render:<x>", "style:A"])
+    }
+
+    private func reloadSetup() async -> (FakeSend, FakeStyle, RenderQueue, CheckedContinuation<Void, Error>) {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.markReady(); await settle()
+        let old = s.waiting.removeFirst()
+        q.submit("x")
+        q.shellWillReload(); q.markReady(); await settle()
+        #expect(s.events == ["style:A", "style:A"])
+        return (f, s, q, old)
+    }
+
+    @Test func staleStyleSuccessDiscarded() async {
+        let (f, s, _, old) = await reloadSetup()
+        old.resume(); await settle()
+        #expect(s.events == ["style:A", "style:A"])
+        #expect(s.applied == 0 && s.styleFailures == 0)
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.events == ["style:A", "style:A", "render:<x>"])
+        #expect(s.applied == 1)
+        #expect(f.calls.count == 1)
+    }
+
+    @Test func staleStyleThrowDiscarded() async {
+        let (f, s, _, old) = await reloadSetup()
+        old.resume(throwing: Boom()); await settle()
+        #expect(s.events == ["style:A", "style:A"])
+        #expect(s.applied == 0 && s.styleFailures == 0 && s.renderFailures == 0)
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(f.calls.count == 1)
+        #expect(s.styleFailures == 0)
+    }
+
+    @Test func styleFailureSeparateAndRenderStillSent() async {
+        let f = FakeSend(); f.immediate = .success(ok)
+        let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.submit("x"); q.markReady(); await settle()
+        s.waiting.removeFirst().resume(throwing: Boom()); await settle()
+        #expect(s.styleFailures == 1 && s.renderFailures == 0 && s.applied == 0)
+        #expect(s.events == ["style:A", "render:<x>"])
+        q.submit("y"); await settle()
+        #expect(s.events == ["style:A", "render:<x>", "render:<y>"])
+        #expect(s.applied == 0)
+    }
+
+    @Test func noRetryAfterFailureUntilNextRequestOrReload() async {
+        let f = FakeSend(); f.immediate = .success(ok)
+        let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.markReady(); await settle()
+        s.waiting.removeFirst().resume(throwing: Boom()); await settle()
+        q.submit("x"); await settle()
+        #expect(s.styles == ["A"])
+        q.setStyle("A"); await settle()
+        #expect(s.styles == ["A", "A"])
+        s.waiting.removeFirst().resume(throwing: Boom()); await settle()
+        q.shellWillReload(); q.markReady(); await settle()
+        #expect(s.styles == ["A", "A", "A"])
+    }
+
+    @Test func newerSurvivesFailedSend() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.markReady(); await settle()
+        q.setStyle("B"); await settle()
+        #expect(s.styles == ["A"])
+        s.waiting.removeFirst().resume(throwing: Boom()); await settle()
+        #expect(s.styleFailures == 1)
+        #expect(s.styles == ["A", "B"])
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.applied == 1 && s.styleFailures == 1)
+    }
+
+    @Test func newerSurvivesSuccessfulSend() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.markReady(); await settle()
+        q.setStyle("B"); await settle()
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.styles == ["A", "B"])
+    }
+
+    @Test func successCallsAppliedOnce() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.setStyle("A"); q.markReady(); await settle()
+        s.waiting.removeFirst().resume(); await settle()
+        #expect(s.applied == 1 && s.styleFailures == 0)
+    }
+
+    @Test func noStyleNoSend() async {
+        let f = FakeSend(); let s = FakeStyle(); let q = makeStyled(f, s)
+        q.submit("x"); q.markReady(); await settle()
+        #expect(s.events == ["render:<x>"])
+    }
+}

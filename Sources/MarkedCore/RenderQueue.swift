@@ -16,6 +16,8 @@ public final class RenderQueue {
     private var pending: String?
     private var latest: String?
     private var lastRendered: String?
+    private var currentStyle: String?
+    private var pendingStyle: String?
 
     public init(
         render: @escaping (String) -> String,
@@ -31,8 +33,11 @@ public final class RenderQueue {
         pump()
     }
 
-    /// W2 stub.
-    public func setStyle(_ css: String) {}
+    public func setStyle(_ css: String) {
+        currentStyle = css
+        pendingStyle = css
+        pump()
+    }
 
     public func markReady() {
         ready = true
@@ -45,10 +50,26 @@ public final class RenderQueue {
         ready = false
         lastRendered = nil
         pending = latest
+        pendingStyle = currentStyle
     }
 
     private func pump() {
-        guard ready, !inFlight, let source = pending else { return }
+        guard ready, !inFlight else { return }
+        if let css = pendingStyle {
+            inFlight = true
+            let gen = generation
+            Task { @MainActor in
+                var failure: Error?
+                do { try await sendStyle(css) } catch { failure = error }
+                guard gen == generation else { return }
+                if pendingStyle == css { pendingStyle = nil }
+                inFlight = false
+                if let failure { onStyleFailure(failure) } else { onStyleApplied() }
+                pump()
+            }
+            return
+        }
+        guard let source = pending else { return }
         pending = nil
         inFlight = true
         let gen = generation
