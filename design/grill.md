@@ -47,3 +47,4 @@
 - D32 (user) Cancelling the Open dialog at launch quits the app. Already covered by S9 (dialog is the last window); verified live, no extra code
 - D33 (user) S5: pin mermaid 11.17.2 (not 12.x); default Mermaid theme, no S2 font tie-in; load-cost call (eager vs lazy injection) made by the author after the W5.4 measurement
 - D34 (user) S6: self-link `this.md#sec` keeps D17 literal (focus, no scroll; deferred); `file://` links cancelled (as D25); missing link target → system error alert (`presentError`)
+- D35 (user) S8: `<mark>` keeps the user-agent default color; mid-word `a==b==c` marks `b`

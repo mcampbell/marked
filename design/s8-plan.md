@@ -20,7 +20,7 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 - **DOM walk (`transform` phase):** one `TreeWalker` over text nodes of `#content` whose `data` contains `==`; reject a node inside `pre, code, kbd, samp, div.mermaid, svg, script, style, textarea` (`closest`). Collect first, then replace each node with a fragment of text nodes and `<mark>` elements built with `textContent`. Same text node only: a highlight that spans inline markup (`==a *b* c==`) stays literal (deferred, design)
 - **Phase order:** `transform` hooks run in parallel with Mermaid's. The highlight hook is synchronous and touches only text outside `pre`; Mermaid replaces `pre` blocks and inserts its notes after its first `await`. Disjoint DOM, so registration order does not matter (design)
 - **Find and ids:** `find.js` treats `MARK` as inline (not in its block set), so a query matches across the mark edges. `anchors.js` runs in `decorate`, after `transform`, so `# ==Head==` gets the id `head`
-- **Style:** the user-agent default for `mark` (open question 1). No `base.css` change
+- **Style:** the user-agent default for `mark` (D35). No `base.css` change
 - **Global names** stay specific (`splitHighlights`, `HIGHLIGHT_RE`, `markHighlights`): all app scripts share one global scope (S5 review m2)
 
 ## Frozen contracts (W8)
@@ -75,7 +75,9 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 - A highlight spanning inline markup (`==a *b* c==`) (design)
 - Backslash-escaped `\==` (cmark removes the backslash before JS sees the text) (design)
 
-## Open questions
+## Resolved questions (user, 2026-10-09, D35)
 
-1. `<mark>` color: keep the user-agent yellow, or set a softer color in `base.css` so S3 find hits (`#ffe58a`) stay visible inside marks? Recommend the UA default (find's current match is orange and stays visible)
-2. Mid-word `a==b==c` marks `b`. I do not know what Marked 2 does here; markdown-it-mark marks it. Recommend: mark it
+1. `<mark>` color: user-agent default
+2. Mid-word `a==b==c`: marks `b`
+
+No open questions.
