@@ -41,3 +41,4 @@
 - D26 (user) Text wrapped across lines with no blank line renders the same as one line. `CMARK_OPT_NOBREAKS` (soft break → space, identical HTML, find works across it). Pinned by HTMLRendererTests
 - D27 (user) Frontmatter block shows both fences (`---` … `---`/`...`); `---` anywhere other than line 1 is normal markdown
 - D28 (user) Two trailing spaces or a trailing backslash = CommonMark hard line break (`<br />`), unchanged. Pinned by HTMLRendererTests
+- D29 (user) S2: style values accepted (mono ui-monospace/80ch/1.5, serif New York/38em/1.65, sans system/46em/1.6); small scroll jump on style switch accepted

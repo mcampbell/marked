@@ -27,7 +27,7 @@ Critical path: W2 → join(Y1–Y4) → I2.
 - Swap = `Marked.setStyle(cssText)` (S0 bridge, already in `marked.js`); no reload, so scroll position and find state survive
 - The design's "send style then render" lives in `RenderQueue` as a style seam, so the ready gate stays in one tested place: before ready, the latest style waits; on `markReady` the style goes first, then the pending render; after `shellWillReload` the current style is sent again on the next `markReady`. Style sends never wait for a render in flight (the JS call is synchronous and independent of content)
 - Menu: `CommandGroup(after: .toolbar)` in the View menu: three `Toggle`s bound to the stored style, so the menu shows a check; `.keyboardShortcut("1")`, `"2"`, `"3"` (Cmd is the default modifier). Order follows the request: 1 mono, 2 serif, 3 sans
-- Scroll on a style switch: the browser keeps `scrollY`, so the reader may land a little off after the reflow. Accept for now (Unresolved Q2)
+- Scroll on a style switch: the browser keeps `scrollY`, so the reader may land a little off after the reflow. Accepted (user, 2026-10-09)
 
 ## Frozen contracts (W2)
 
@@ -106,7 +106,9 @@ public func setStyle(_ css: String)
 - C3 `WebView` coordinator: S2 adds `sendStyle` and `apply(style)`; S3 and S6 edit other parts
 - `RenderQueue`: additive seam only; existing API and tests unchanged
 
-## Unresolved questions
+## Resolved questions (user, 2026-10-09)
 
-1. Style values (fonts, widths, line heights in "Own decisions") OK?
-2. On a style switch, keep the same paragraph at the top of the window (needs a small JS anchor step), or accept the small jump from reflow? (default: accept)
+1. Style values as listed in "Own decisions": accepted
+2. Small scroll jump from reflow on a style switch: accepted (no anchor step)
+
+No open questions.
