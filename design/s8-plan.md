@@ -55,8 +55,8 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 
 ### I8 — integrate + live check (sequential, main loop)
 
-- [ ] I8.1 Merge K1; `make test`; `make install`
-- [ ] I8.2 Fixture: frontmatter `title: ==fm==`; `# ==Head==`; `a ==plain== b`; `**==bold==**`; `[==link==](#head)`; `` `==code==` ``; fenced code with `if a == b { ==x== }`; raw `<kbd>==k==</kbd>`, `<samp>==s==</samp>`; `== spaced ==`; `====`; `==<b>a</b>==` (spans markup); raw `<b>==x</b>==`; a Mermaid block with node label `==m==`; raw `<script>/* ==s== */</script>` (inert: inserted by `innerHTML`, page JS off); raw `<textarea>==t==</textarea>`; raw HTML block `<p>==multi` newline `line==</p>` (one text node across a line break). Temporary env-guarded harness (not committed):
+- [x] I8.1 Merge K1; `make test`; `make install`
+- [x] I8.2 (2026-10-09: all pass. Marks `Head, plain, bold, link, multi\nline, <img src=x onerror=1>` (text only, 0 `img`); 0 marks in `pre/code/kbd/samp/div.mermaid/script/textarea`; frontmatter, code, inline code, `kbd`, `samp`, spaced, `====`, textarea keep `==`; `h1#head`; Mermaid label `==m==` renders unmarked; find `plain b` 1 of 1; find `==` 1 of 21; append → 7 marks, 0 nested) Fixture: frontmatter `title: ==fm==`; `# ==Head==`; `a ==plain== b`; `**==bold==**`; `[==link==](#head)`; `` `==code==` ``; fenced code with `if a == b { ==x== }`; raw `<kbd>==k==</kbd>`, `<samp>==s==</samp>`; `== spaced ==`; `====`; `==<b>a</b>==` (spans markup); raw `<b>==x</b>==`; a Mermaid block with node label `==m==`; raw `<script>/* ==s== */</script>` (inert: inserted by `innerHTML`, page JS off); raw `<textarea>==t==</textarea>`; raw HTML block `<p>==multi` newline `line==</p>` (one text node across a line break). Temporary env-guarded harness (not committed):
   - `mark` texts = exactly `Head`, `plain`, `bold`, `link`, `multi\nline` (document order); no `mark` inside `pre`, `code`, `kbd`, `samp`, `div.mermaid`, `script`, `textarea`
   - the code block, inline code, frontmatter, `kbd`, `samp`, spaced and `====` texts still contain their `==`
   - the `h1` id is `head`
@@ -64,7 +64,7 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
   - find `plain b` → `1 of 1` (crosses the mark edge); find `==` → counts only the literal `==` occurrences outside marks (no crash)
   - live reload: append `==new==` → marks + 1; no nested `mark` (`mark mark` count 0)
   - ≥ 2 s between launches; `--args -ApplePersistenceIgnoreState YES`
-- [ ] I8.3 code-reviewer loop until clean (max 5) → `design/s8-review.md`; tick S8 in `design.md`; commit on `s8-highlight`
+- [x] I8.3 (1 round + clean re-check, `design/s8-review.md`) code-reviewer loop until clean (max 5) → `design/s8-review.md`; tick S8 in `design.md`; commit on `s8-highlight`
 
 ## Merge conflicts
 
