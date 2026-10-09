@@ -54,10 +54,14 @@ struct WebView: NSViewRepresentable {
 
         func stop() { watcher?.stop() }
 
+        nonisolated static func mtime(_ path: String) -> Double? {
+            (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate] as? Date)?.timeIntervalSince1970
+        }
+
         func start(_ web: WKWebView, fileURL: URL?) {
             let shell = DocURL.shellURL(forDocument: fileURL ?? URL(fileURLWithPath: "/untitled.md"))
             self.shell = shell
-            let queue = RenderQueue(render: HTMLRenderer.render) { [weak self, weak web] html, line in
+            let queue = RenderQueue(render: { ImageStamp.apply(HTMLRenderer.render($0), shell: shell, mtime: Self.mtime) }) { [weak self, weak web] html, line in
                 guard let web else { throw CocoaError(.userCancelled) }
                 let args: [String: Any] = ["html": html, "changedLine": line.map { $0 as Any } ?? NSNull()]
                 let raw = try await web.callAsyncJavaScript(

@@ -71,7 +71,7 @@ public enum ImageStamp {
 
 ### T1 — serve rule + MIME (builder)
 
-- [ ] T1.1 Tests first (no `import Foundation`; build URLs with `.init(string:)!`; fake `probe` closure):
+- [x] T1.1 Tests first (no `import Foundation`; build URLs with `.init(string:)!`; fake `probe` closure):
   - `marked://doc/tmp/a.png`, probe → regular file → `"/tmp/a.png"`
   - percent-encoded path (`/tmp/a%20b/c.png`) → probe receives the decoded `"/tmp/a b/c.png"`
   - extension case: `A.PNG` → served
@@ -83,18 +83,18 @@ public enum ImageStamp {
   - query is ignored: `marked://doc/tmp/a.png?v=12` → `"/tmp/a.png"`
   - `app` host or foreign scheme → `nil`
   - `contentType(forPath:)`: `.svg` → `image/svg+xml`, `.png` → `image/png`, `.JPG` → `image/jpeg`
-- [ ] T1.2 Implement: `filePath(from:)` → extension check → `probe` → regular-file check → extension re-check on `resolvedPath` → return `resolvedPath`. `contentType` via `UTType(filenameExtension: ext.lowercased())?.preferredMIMEType`
+- [x] T1.2 Implement: `filePath(from:)` → extension check → `probe` → regular-file check → extension re-check on `resolvedPath` → return `resolvedPath`. `contentType` via `UTType(filenameExtension: ext.lowercased())?.preferredMIMEType`
 
 ### T2 — SchemeHandler route (builder)
 
-- [ ] T2.1 After the shell branch: `else if url.host == DocURL.docHost, let path = DocURL.imageFile(for: url, probe: Self.probe)` → `body = try? Data(contentsOf: URL(fileURLWithPath: path))`, `type = DocURL.contentType(forPath: path)`. A failed read → 403 (existing path)
-- [ ] T2.2 `static func probe(_ path: String) -> FileInfo?`: `URL(fileURLWithPath: path).resolvingSymlinksInPath().path` → `FileManager.default.attributesOfItem` → `.type == .typeRegular`
-- [ ] T2.3 `WebView`: queue `render` closure = `{ ImageStamp.apply(HTMLRenderer.render($0), shell: shell, mtime: Self.mtime) }`; `static func mtime(_ path: String) -> Double?` via `FileManager.attributesOfItem` `.modificationDate`
-- [ ] T2.4 `make app` builds with no warnings in the file; `make test` stays green
+- [x] T2.1 After the shell branch: `else if url.host == DocURL.docHost, let path = DocURL.imageFile(for: url, probe: Self.probe)` → `body = try? Data(contentsOf: URL(fileURLWithPath: path))`, `type = DocURL.contentType(forPath: path)`. A failed read → 403 (existing path)
+- [x] T2.2 `static func probe(_ path: String) -> FileInfo?`: `URL(fileURLWithPath: path).resolvingSymlinksInPath().path` → `FileManager.default.attributesOfItem` → `.type == .typeRegular`
+- [x] T2.3 `WebView`: queue `render` closure = `{ ImageStamp.apply(HTMLRenderer.render($0), shell: shell, mtime: Self.mtime) }`; `static func mtime(_ path: String) -> Double?` via `FileManager.attributesOfItem` `.modificationDate`
+- [x] T2.4 `make app` builds with no warnings in the file; `make test` stays green
 
 ### T3 — ImageStamp (builder)
 
-- [ ] T3.1 Tests first (no `import Foundation`; shell `marked://doc/tmp/d/__marked__.html` via `.init(string:)!`; fake `mtime` dictionary keyed by path):
+- [x] T3.1 Tests first (no `import Foundation`; shell `marked://doc/tmp/d/__marked__.html` via `.init(string:)!`; fake `mtime` dictionary keyed by path):
   - `<img src="a.png" alt="x" />` → `src="a.png?v=12000"` when `/tmp/d/a.png` → 12.0 s (v = integer milliseconds); 12.0004 s → `v=12000`, 12.5 s → `v=12500`
   - `../up.png` → stamped via `/tmp/up.png`; absolute `/abs/p.png` → stamped
   - percent-encoded `a%20b.png` → mtime looked up as `/tmp/d/a b.png`; `src` keeps its encoding
@@ -112,7 +112,7 @@ public enum ImageStamp {
   - `<!-- <img src="c.png"> -->` → comment unchanged
   - `<a title="<img src='x'>">` → unchanged (not a real `img` tag)
   - output differs from input only inside the stamped `src` values
-- [ ] T3.2 Implement with a quote-aware tag scan, not a single `src` regex (a lone regex cannot tell a real attribute from text inside another attribute's quotes). Two `NSRegularExpression`s, prototyped 2026-10-09:
+- [x] T3.2 Implement with a quote-aware tag scan, not a single `src` regex (a lone regex cannot tell a real attribute from text inside another attribute's quotes). Two `NSRegularExpression`s, prototyped 2026-10-09:
   - attribute: `\s+([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?`
   - tag: `<!--[\s\S]*?-->|<([A-Za-z][^\s/>]*)((?:<attribute>)*)\s*/?>` — scanned left to right over the whole HTML, so comments and quoted values (including `>` and `<img` inside them) are consumed whole
   - for each tag named `img` (case-insensitive): walk its attributes, take the **first** `src` (case-insensitive); stamp only when it is double-quoted (group 2). Replace from the end so ranges stay valid
@@ -120,8 +120,8 @@ public enum ImageStamp {
 
 ### I7 — integrate + live check (sequential, main loop)
 
-- [ ] I7.1 Merge T1, T2 **and T3** (copy files from worktrees; T3 replaces the identity `ImageStamp.apply` stub and adds `ImageStampTests`); `make test` (confirm `ImageStampTests` ran); `make install`
-- [ ] I7.2 Fixture `~/tmp/marked fixtures/img dir/doc.md` (spaced path) with `img.png` beside it, `../up.png`, `sub/a b.svg`, an absolute-path image, `notes.txt` linked as an image, a symlink `evil.png` → a text file, and a missing image. Temporary env-guarded harness (not committed) reads each `<img>`'s `naturalWidth` after load: the four real images > 0; the `.txt`, symlink, and missing ones = 0. Cache-busting: replace `img.png` with a different-size image, append a line to `doc.md` → after the render, `img.png`'s `naturalWidth` matches the new image and its `src` carries a new `v`
+- [x] I7.1 Merge T1, T2 **and T3** (copy files from worktrees; T3 replaces the identity `ImageStamp.apply` stub and adds `ImageStampTests`); `make test` (confirm `ImageStampTests` ran); `make install`
+- [x] I7.2 (2026-10-09: rel 10px, up 12px, svg 16px, abs 14px load; txt, symlink, missing = 0; swap → rel 30px with new `v`, others keep their `v`) Fixture `~/tmp/marked fixtures/img dir/doc.md` (spaced path) with `img.png` beside it, `../up.png`, `sub/a b.svg`, an absolute-path image, `notes.txt` linked as an image, a symlink `evil.png` → a text file, and a missing image. Temporary env-guarded harness (not committed) reads each `<img>`'s `naturalWidth` after load: the four real images > 0; the `.txt`, symlink, and missing ones = 0. Cache-busting: replace `img.png` with a different-size image, append a line to `doc.md` → after the render, `img.png`'s `naturalWidth` matches the new image and its `src` carries a new `v`
 - [ ] I7.3 code-reviewer loop until clean (max 5); commit on `s7-images`; tick S7 in `design.md`
 
 ## Merge conflicts

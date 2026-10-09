@@ -14,6 +14,9 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
                 body = css; type = "text/css; charset=utf-8"
             } else if url.host == DocURL.docHost, url.lastPathComponent == DocURL.shellName {
                 body = shell; type = "text/html; charset=utf-8"
+            } else if url.host == DocURL.docHost, let path = DocURL.imageFile(for: url, probe: Self.probe) {
+                body = try? Data(contentsOf: URL(fileURLWithPath: path))
+                type = DocURL.contentType(forPath: path)
             }
         }
         let url = req.url ?? DocURL.appURL("")
@@ -26,6 +29,12 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
                                                  headerFields: ["Content-Type": type, "Content-Length": "\(body.count)"])!)
         urlSchemeTask.didReceive(body)
         urlSchemeTask.didFinish()
+    }
+
+    static func probe(_ path: String) -> FileInfo? {
+        let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: resolved) else { return nil }
+        return FileInfo(resolvedPath: resolved, isRegularFile: (attrs[.type] as? FileAttributeType) == .typeRegular)
     }
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
