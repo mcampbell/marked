@@ -5,7 +5,8 @@ import cmark_gfm_extensions
 public enum HTMLRenderer {
     public static func render(_ source: String) -> String {
         cmark_gfm_core_extensions_ensure_registered()
-        let options = CMARK_OPT_SOURCEPOS | CMARK_OPT_UNSAFE
+        // NOBREAKS: a soft line break renders as a space, so wrapped text is identical to one line (and find matches across it).
+        let options = CMARK_OPT_SOURCEPOS | CMARK_OPT_UNSAFE | CMARK_OPT_NOBREAKS
         let parser = cmark_parser_new(options)
         defer { cmark_parser_free(parser) }
         for name in ["table", "strikethrough", "autolink", "tasklist"] {

@@ -1,6 +1,6 @@
 # S4 implementation plan — frontmatter (parallel)
 
-Source: `design.md` (S4 row, "Frontmatter trick", S1 change rule for frontmatter), `grill.md` Q7. Size: 1 pt (`estimates.md`). Builds on `s7-images` @ `09d3b79`.
+Source: `design.md` (S4 row, "Frontmatter trick", S1 change rule for frontmatter), `grill.md` Q7. Size: 1 pt (`estimates.md`). Builds on `s7-images` (incl. `CMARK_OPT_NOBREAKS`, added after this plan was written: F2 must keep that option and the soft-break tests green).
 
 Done = a document starting with a YAML frontmatter block shows that block verbatim as a monospace code block above the body, in every style; the body renders as before with correct live-scroll line numbers; an edit inside the frontmatter scrolls to the block; `make test` green; live check passes.
 
