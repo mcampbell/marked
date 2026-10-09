@@ -44,3 +44,4 @@
 - D29 (user) S2: style values accepted (mono ui-monospace/80ch/1.5, serif New York/38em/1.65, sans system/46em/1.6); small scroll jump on style switch accepted
 - D30 (user) S3: case-insensitive only (no options); frontmatter searchable; find bar above the error banner
 - D31 (user) S9: open adds a window per document in one app; app quits when all windows close (one-copy-per-document was allowed, not needed). Reopening an open document focuses it
+- D32 (user) Cancelling the Open dialog at launch quits the app. Already covered by S9 (dialog is the last window); verified live, no extra code
