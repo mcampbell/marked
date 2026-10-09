@@ -45,3 +45,4 @@
 - D30 (user) S3: case-insensitive only (no options); frontmatter searchable; find bar above the error banner
 - D31 (user) S9: open adds a window per document in one app; app quits when all windows close (one-copy-per-document was allowed, not needed). Reopening an open document focuses it
 - D32 (user) Cancelling the Open dialog at launch quits the app. Already covered by S9 (dialog is the last window); verified live, no extra code
+- D33 (user) S5: pin mermaid 11.17.2 (not 12.x); default Mermaid theme, no S2 font tie-in; load-cost call (eager vs lazy injection) made by the author after the W5.4 measurement

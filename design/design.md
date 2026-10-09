@@ -159,4 +159,4 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 Resolved 2026-10-09 (user): local use only, no App Store. Bundle id `com.example.Marked`, app "Marked", ad-hoc `codesign -s -`, no notarization. No root at any build/run phase (see `s0-plan.md`).
 
 Gate S5 only:
-- Mermaid version to pin? (default: latest 11.x at S5 start)
+- ~~Mermaid version to pin?~~ Resolved D33: 11.17.2

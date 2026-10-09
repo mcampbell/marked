@@ -99,8 +99,10 @@ div.mermaid { text-align: center; margin: 1em 0 }
 - Render cache (see `ponytail:` note)
 - Lazy injection of the vendor script (only if W5.4 (f) is slow)
 
-## Open questions
+## Resolved questions (user, 2026-10-09, D33)
 
-1. Pin 11.17.2 (design default, D19 behavior was checked on 11.x) or the new major 12.1.0? Recommend 11.17.2
-2. Default Mermaid theme, no S2 font tie-in? Recommend yes
-3. If the vendor script adds more than ~300 ms per window load: accept, or lazy-inject on the first Mermaid block (+0.5 pt)? Recommend: decide after W5.4 (f)
+1. Pin 11.17.2, not 12.1.0
+2. Default Mermaid theme, no S2 font tie-in
+3. Eager vs lazy injection: the author decides after the W5.4 (f) measurement and records it here
+
+No open questions.
