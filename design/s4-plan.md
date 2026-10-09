@@ -56,10 +56,10 @@ public enum FrontmatterSplit {
 
 ### W4 — stub + CSS (sequential, main loop)
 
-- [ ] W4.1 Branch `s4-frontmatter` from `s7-images`
-- [ ] W4.2 `Frontmatter.swift` with the frozen types; `split` → `nil`
-- [ ] W4.3 `base.css`: `pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #eef2f6; border-left: 3px solid #8aa; }` (fixed values, no `var()`)
-- [ ] W4.4 `make test` green → commit → fork worktrees
+- [x] W4.1 Branch `s4-frontmatter` from `s7-images`
+- [x] W4.2 `Frontmatter.swift` with the frozen types; `split` → `nil`
+- [x] W4.3 `base.css`: `pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #eef2f6; border-left: 3px solid #8aa; }` (fixed values, no `var()`)
+- [x] W4.4 `make test` green → commit → fork worktrees
 
 ### F1 — split (builder)
 
