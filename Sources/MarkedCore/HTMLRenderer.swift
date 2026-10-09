@@ -5,6 +5,7 @@ import cmark_gfm_extensions
 public enum HTMLRenderer {
     public static func render(_ source: String) -> String {
         guard let (fm, body) = FrontmatterSplit.split(source) else { return cmark(source) }
+        // "1:1-N:3" keeps cmark's sourcepos form, which Resources/js/scroll.js rangeOf parses.
         return "<pre class=\"frontmatter\" data-sourcepos=\"1:1-\(fm.endLine):3\"><code>\(escape(fm.text))</code></pre>\n" + cmark(body)
     }
 

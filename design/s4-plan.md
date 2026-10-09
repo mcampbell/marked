@@ -98,7 +98,7 @@ public enum FrontmatterSplit {
   - append at the end → scrolls down (S1 still works with frontmatter)
   - then edit frontmatter line 2 → `scrollY` returns near 0 (target = frontmatter block)
   - unclosed variant → no `pre.frontmatter`, an `hr` at the top
-- [ ] I4.3 code-reviewer loop until clean (max 5); commit on `s4-frontmatter`; tick S4 in `design.md`
+- [x] I4.3 code-reviewer loop (clean at round 2, see `s4-review.md`) until clean (max 5); commit on `s4-frontmatter`; tick S4 in `design.md`
 
 ## Merge conflicts
 

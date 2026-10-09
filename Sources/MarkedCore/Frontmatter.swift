@@ -11,7 +11,7 @@ public struct Frontmatter: Equatable, Sendable {
 }
 
 public enum FrontmatterSplit {
-    /// nil when the document has no closed frontmatter block. body = source with lines 1…endLine blanked. W4 stub.
+    /// nil when the document has no closed frontmatter block. body = source with lines 1…endLine blanked.
     public static func split(_ source: String) -> (frontmatter: Frontmatter, body: String)? {
         var src = Substring(source)
         if src.unicodeScalars.first == "\u{FEFF}" { src.unicodeScalars.removeFirst() }
