@@ -9,6 +9,7 @@ struct WebView: NSViewRepresentable {
     @Binding var styleFailure: String?
     @Binding var banner: String?
     let find: FindController
+    let toc: TOCController
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -26,7 +27,8 @@ struct WebView: NSViewRepresentable {
                                  Self.resource("mermaid.min", "js", subdirectory: "vendor"),
                                  Self.resource("mermaid-hook", "js", subdirectory: "js"),
                                  Self.resource("anchors", "js", subdirectory: "js"),
-                                 Self.resource("highlight", "js", subdirectory: "js")]
+                                 Self.resource("highlight", "js", subdirectory: "js"),
+                                 Self.resource("toc", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
@@ -34,6 +36,7 @@ struct WebView: NSViewRepresentable {
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = c
         c.findController = find
+        c.tocController = toc
         c.start(web, fileURL: fileURL, find: find.session)
         c.apply(style)
         return web
@@ -80,6 +83,9 @@ struct WebView: NSViewRepresentable {
         private var hasRendered = false
         private var shell: URL?
         weak var findController: FindController?
+        weak var tocController: TOCController?
+        /// Bumped per TOC refresh; a reply from an older refresh is dropped.
+        private var tocGeneration = 0
         /// Runs the side effect of a link click. A seam so a live check can record instead of open.
         var performLink: (LinkAction) -> Void = { action in
             switch action {
@@ -152,7 +158,14 @@ struct WebView: NSViewRepresentable {
                 self?.setFailure(nil)   // bridge works again; hook errors show in the page
                 return RenderResult(ok: ok, errors: errors)
             }
-            queue.onRendered = { [weak find] in find?.renderDidComplete() }
+            tocController?.go = { [weak web] i in
+                Task { _ = try? await web?.callAsyncJavaScript(
+                    "return Marked.toc.go(i)", arguments: ["i": i], in: nil, contentWorld: .defaultClient) }
+            }
+            queue.onRendered = { [weak find, weak self, weak web] in
+                find?.renderDidComplete()
+                if let web { self?.refreshTOC(web) }
+            }
             queue.changedLine = LineDiff.firstChangedLine
             self.queue = queue
             queue.onFailure = { [weak self] err in
@@ -184,6 +197,26 @@ struct WebView: NSViewRepresentable {
             }
             watcher = w
             w.start()
+        }
+
+        /// Re-reads the headings after a render. Runs from `onRendered`, which also fires after a shell reload.
+        func refreshTOC(_ web: WKWebView) {
+            tocGeneration += 1
+            let gen = tocGeneration
+            Task { [weak self, weak web] in
+                guard let web else { return }
+                let entries: [TOCEntry]
+                do {
+                    let raw = try await web.callAsyncJavaScript(
+                        "return Marked.toc.headings()", arguments: [:], in: nil, contentWorld: .defaultClient)
+                    entries = try TOC.parse(raw)
+                } catch {
+                    NSLog("Marked toc failed: \(error)")
+                    entries = []
+                }
+                guard let self, gen == tocGeneration else { return }
+                tocController?.update(entries)
+            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

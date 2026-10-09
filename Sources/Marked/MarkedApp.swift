@@ -41,6 +41,7 @@ struct MarkedApp: App {
         }
         .commands {
             FindCommands()
+            SidebarCommands()
             CommandGroup(after: .toolbar) {
                 ForEach(Style.allCases, id: \.self) { s in
                     Toggle(s.title, isOn: Binding(
