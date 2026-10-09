@@ -2,6 +2,8 @@
 public final class RenderQueue {
     public var changedLine: (String, String) -> Int? = { _, _ in nil }
     public var onFailure: (Error) -> Void = { _ in }
+    /// Fires only for a render success that belongs to the current shell.
+    public var onRendered: () -> Void = {}
     /// Style seam: sent before renders through the same in-flight slot.
     public var sendStyle: (String) async throws -> Void = { _ in }
     public var onStyleApplied: () -> Void = {}
@@ -81,6 +83,7 @@ public final class RenderQueue {
                 guard gen == generation else { return }
                 lastRendered = source
                 inFlight = false
+                onRendered()
             } catch {
                 guard gen == generation else { return }
                 inFlight = false

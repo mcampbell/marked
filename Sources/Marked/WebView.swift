@@ -20,7 +20,8 @@ struct WebView: NSViewRepresentable {
         cfg.defaultWebpagePreferences.allowsContentJavaScript = false
         cfg.setURLSchemeHandler(SchemeHandler(), forURLScheme: DocURL.scheme)
         // Later slices append their scripts here.
-        let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js")]
+        let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js"),
+                                 Self.resource("find", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))

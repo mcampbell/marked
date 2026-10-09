@@ -316,4 +316,34 @@ func makeStyled(_ f: FakeSend, _ s: FakeStyle) -> RenderQueue {
         q.submit("x"); q.markReady(); await settle()
         #expect(s.events == ["render:<x>"])
     }
+
+    // onRendered: current-generation render success only.
+    @Test func onRenderedSkipsRenderFromOldShell() async {
+        let f = FakeSend(); let q = make(f)
+        var rendered = 0
+        q.onRendered = { rendered += 1 }
+        q.markReady(); q.submit("a"); await settle()
+        q.shellWillReload(); q.markReady(); await settle()
+        f.waiting.removeFirst().resume(returning: ok); await settle()   // old shell's render A
+        #expect(rendered == 0)
+        f.waiting.removeFirst().resume(returning: ok); await settle()   // new shell's render
+        #expect(rendered == 1)
+    }
+
+    @Test func onRenderedNotCalledOnThrow() async {
+        let f = FakeSend(); f.immediate = .failure(Boom()); let q = make(f)
+        var rendered = 0
+        q.onRendered = { rendered += 1 }
+        q.markReady(); q.submit("a"); await settle()
+        #expect(rendered == 0)
+    }
+
+    @Test func onRenderedAfterBaselineUpdated() async {
+        let f = FakeSend(); f.immediate = .success(ok); let q = make(f)
+        var pairs: [String] = []
+        q.changedLine = { pairs.append("\($0)|\($1)"); return nil }
+        q.onRendered = { if pairs.isEmpty { q.submit("b") } }
+        q.markReady(); q.submit("a"); await settle()
+        #expect(pairs == ["a|b"])
+    }
 }
