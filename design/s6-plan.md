@@ -102,7 +102,7 @@ var performLink: (LinkAction) -> Void        // default: the effects in "Own dec
   - shell reload (terminate path) still loads; `make test` green
   - ≥ 2 s between launches; launch with `--args -ApplePersistenceIgnoreState YES`
 - [ ] I6.3 Manual (person at the keyboard): click a web link → default browser opens; click `notes.txt` → Finder reveals it
-- [ ] I6.4 code-reviewer loop (+ `mc-code-security`: hostile links) until clean (max 5) → `design/s6-review.md`; tick S6 in `design.md`; commit on `s6-links`
+- [x] I6.4 (2 rounds, `design/s6-review.md`) code-reviewer loop (+ `mc-code-security`: hostile links) until clean (max 5) → `design/s6-review.md`; tick S6 in `design.md`; commit on `s6-links`
 
 ## Merge conflicts
 

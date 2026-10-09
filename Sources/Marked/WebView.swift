@@ -199,8 +199,9 @@ struct WebView: NSViewRepresentable {
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             guard let url = action.request.url, let shell else { return decisionHandler(.cancel) }
             let a = LinkPolicy.decide(url, shell: shell, linkActivated: action.navigationType == .linkActivated)
-            if a != .allow && a != .cancel { performLink(a) }
+            // Answer WebKit first: an effect can show an app-modal alert (missing file).
             decisionHandler(a == .allow ? .allow : .cancel)
+            if a != .allow && a != .cancel { performLink(a) }
         }
     }
 }
