@@ -11,3 +11,5 @@ pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #ee
 ::highlight(find-current) { background: #ff9632 }
 .find-hit { background: #ffe58a }
 .find-current { background: #ff9632 }
+div.mermaid { text-align: center; margin: 1em 0 }
+.mermaid-error { color: #c00; font-size: .9em; margin: -.5em 0 1em }

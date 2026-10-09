@@ -53,10 +53,10 @@ div.mermaid { text-align: center; margin: 1em 0 }
 
 ### W5 — vendor, stubs, spike (sequential, main loop)
 
-- [ ] W5.1 Branch `s5-mermaid` from `s3-find`
-- [ ] W5.2 Vendor: `npm pack mermaid@11.17.2` in a new empty scratch dir, `tar -xzf`, copy `package/dist/mermaid.min.js` and `package/LICENSE`; write `VERSION` with the sha256 of the copied file. Do not run anything from the package
-- [ ] W5.3 Stub `mermaid-hook.js`: the real `mermaid.initialize({…})` call from "Init once" behind the `typeof mermaid` guard (frozen, so the W5.4 spike runs under the production options), `renderAll` resolves `[]`, no hook registered; append both `userScripts` lines; add the CSS
-- [ ] W5.4 Spike in the running app (temporary env-guarded harness, not committed), fixture: one flowchart `A --> B --> C`, one `sequenceDiagram`, one syntax-bad block, one render-bad candidate. From `.defaultClient` call `mermaid.render` directly and record:
+- [x] W5.1 Branch `s5-mermaid` from `s3-find`
+- [x] W5.2 Vendor: `npm pack mermaid@11.17.2` in a new empty scratch dir, `tar -xzf`, copy `package/dist/mermaid.min.js` and `package/LICENSE`; write `VERSION` with the sha256 of the copied file. Do not run anything from the package
+- [x] W5.3 Stub `mermaid-hook.js`: the real `mermaid.initialize({…})` call from "Init once" behind the `typeof mermaid` guard (frozen, so the W5.4 spike runs under the production options), `renderAll` resolves `[]`, no hook registered; append both `userScripts` lines; add the CSS
+- [x] W5.4 Spike in the running app (temporary env-guarded harness, not committed), fixture: one flowchart `A --> B --> C`, one `sequenceDiagram`, one syntax-bad block, one render-bad candidate. From `.defaultClient` call `mermaid.render` directly and record:
   - (a) `typeof mermaid.render === "function"` (the UMD global exists in the isolated world)
   - (b) the flowchart and the sequence diagram render under the real CSP (no `eval` / `unsafe-eval` block; print any thrown message)
   - (c) arrowheads: `takeSnapshot` of the flowchart SVG rect saved as PNG and inspected; the SVG has `<marker>` and `marker-end="url(#…)"`
@@ -65,7 +65,9 @@ div.mermaid { text-align: center; margin: 1em 0 }
   - (f) cost: `performance.now()` at the top of `mermaid-hook.js` with vs without the vendor line (3 launches each). Under ~300 ms extra → keep eager injection. Over → the author picks eager or lazy injection (lazy: +0.5 pt) and records the choice and numbers in "Resolved questions" (D33)
 
   Stop and ask on a CSP block (b) that no `mermaid.initialize` option fixes. Record the results here
-- [ ] W5.5 `make test` + `make app` green → commit
+
+  **Results (2026-10-09, macOS 26 WebKit, real CSP, production `initialize`):** (a) `mermaid` object, `render` function. (b) flowchart 12 343 B and sequence 22 354 B SVG, no CSP error. (c) SVG has `<marker>` and `marker-end="url(#…)"`; snapshot PNG shows the arrowheads. (d) syntax-bad throws in `parse` and `render` ("Parse error on line 3: ...edle] --> B  B --> --> C ---^ Expecting …": the excerpt quotes ~20 chars before the error, so keep `needle` well away from the error line). Render-bad (parse ok, render throws): gantt `2024-13-45` → "Invalid date:2024-13-45"; subgraph cycle `X`⊃`Y`⊃`X` → "Setting Y as parent of X would create a cycle". `gantt … after zz` and subgraph-named-as-node render fine. (e) no `body > #mmd-*` / `#dmmd-*` leftovers after any success or failure (Mermaid cleans up; the hook cleanup stays as a guard, exercised by the I5 injected failure). (f) hook script start 79-80 ms with the vendor script vs 2 ms without (3 launches each): ~78 ms extra → **eager injection kept**
+- [x] W5.5 `make test` + `make app` green → commit
 
 ### K1 — mermaid-hook.js (builder)
 
@@ -104,6 +106,6 @@ div.mermaid { text-align: center; margin: 1em 0 }
 
 1. Pin 11.17.2, not 12.1.0
 2. Default Mermaid theme, no S2 font tie-in
-3. Eager vs lazy injection: the author decides after the W5.4 (f) measurement and records it here
+3. Eager vs lazy injection: **eager** (author, after W5.4 (f): ~78 ms extra per window load)
 
 No open questions.

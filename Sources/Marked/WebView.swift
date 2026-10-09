@@ -22,7 +22,9 @@ struct WebView: NSViewRepresentable {
         cfg.setURLSchemeHandler(SchemeHandler(), forURLScheme: DocURL.scheme)
         // Later slices append their scripts here.
         let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js"),
-                                 Self.resource("find", "js", subdirectory: "js")]
+                                 Self.resource("find", "js", subdirectory: "js"),
+                                 Self.resource("mermaid.min", "js", subdirectory: "vendor"),
+                                 Self.resource("mermaid-hook", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
