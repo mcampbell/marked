@@ -42,9 +42,9 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 
 ### W8 — stub (sequential, main loop)
 
-- [ ] W8.1 Branch `s8-highlight` from `s6-links`
-- [ ] W8.2 `highlight.js` stub (`splitHighlights` returns `[{text, mark: false}]`, no hook); append `resource("highlight", "js", subdirectory: "js")` to `userScripts`
-- [ ] W8.3 `make test` + `make app` green → commit
+- [x] W8.1 Branch `s8-highlight` from `s6-links`
+- [x] W8.2 `highlight.js` stub (`splitHighlights` returns `[{text, mark: false}]`, no hook); append `resource("highlight", "js", subdirectory: "js")` to `userScripts`
+- [x] W8.3 `make test` + `make app` green → commit
 
 ### K1 — highlight.js (builder)
 
