@@ -34,3 +34,4 @@
 - D19 Mermaid errors: sequential per-diagram `mermaid.render` in try/catch; failure (parse or render) → source + error note; others still render. (Replaces parse-then-run; earlier review claim that `run` stops at first error was wrong — 11.12.0 collects errors and throws after the loop)
 - D20 (user-approved) Split S0: S0 keeps skeleton, lifecycle, ready gate, bridge, shell-only handler, `DocURL` encoding, CSP, spikes a/c/d. New S7 "Local images" (serve rule, MIME) runs parallel with S1–S6
 - D21 (user) Local use only, never App Store. Ad-hoc signing, `com.example.Marked`. No root at any phase of build/run; install to `~/Applications` + per-user `lsregister`
+- D22 (user) S1: banner after 2 missing polls; smooth scroll; flash `#fff3a0` 1.2s; node optional for JS tests

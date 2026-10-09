@@ -26,7 +26,7 @@ Critical path: W1 → join(Q1–Q4) → I1. Expected longest: Q2 (reducer edge c
 - First open read error → banner on an empty page. S0's in-page `**Cannot display:**` text goes away (S0 plan said S1 replaces it)
 - Banner (file state) and window subtitle (bridge state, S0) stay separate: different causes, different fixes
 - Flash = Web Animations API (`el.animate(...)`, ~1.2s yellow fade). No CSS file change → no conflict with S2/S4 on `base.css`
-- Scroll = `scrollIntoView({block: "center"})`, no smooth animation (instant is easier to verify; revisit if it feels harsh)
+- Scroll = `scrollIntoView({block: "center", behavior: "smooth"})` (user, 2026-10-09). Flash starts with the scroll
 - Scroll-target choice is a pure JS function over parsed `data-sourcepos` ranges → unit-tested with `node --test` (node 22 present). `make test` runs Swift tests, then JS tests if `node` exists
 - Resource lookup gains `subdirectory:` (`cp -R` keeps `Resources/js/`). Changed once in W1; S3/S5/S6 reuse it
 
@@ -97,7 +97,7 @@ extension Bundle { func requiredResource(_ name: String, _ ext: String, subdirec
 ### Q3 — scroll.js (builder)
 
 - [ ] Q3.1 Node test first (`Tests/js/scroll.test.mjs`, `node:test` + `node:assert`): `pickTarget` — line inside one block → it; nested (list in list item) → deepest (last container in document order); line in a gap (blank / deleted) → first block starting after it; past the end → last block; empty ranges → -1; frontmatter range `1:1-4:1` with line 2 → it
-- [ ] Q3.2 `scroll.js`: parse `data-sourcepos` of `#content [data-sourcepos]`; `changedLine == null` → return (first render, identical); else `pickTarget` → `scrollIntoView({block: "center"})` + `el.animate([{background: "#fff3a0"}, {background: "transparent"}], {duration: 1200})`. Export `pickTarget` for node via `if (typeof module !== "undefined") module.exports = { pickTarget }` (or a `globalThis` guard the test reads); browser path must not throw without `module`
+- [ ] Q3.2 `scroll.js`: parse `data-sourcepos` of `#content [data-sourcepos]`; `changedLine == null` → return (first render, identical); else `pickTarget` → `scrollIntoView({block: "center", behavior: "smooth"})` + `el.animate([{background: "#fff3a0"}, {background: "transparent"}], {duration: 1200})`. Export `pickTarget` for node via `if (typeof module !== "undefined") module.exports = { pickTarget }` (or a `globalThis` guard the test reads); browser path must not throw without `module`
 - [ ] Q3.3 `Makefile`: `test` runs Swift tests, then `node --test Tests/js` when `command -v node` succeeds (prints "node not found, JS tests skipped" otherwise). `make app` already copies `Resources/js/`
 
 ### Q4 — wiring (builder)
@@ -113,7 +113,7 @@ extension Bundle { func requiredResource(_ name: String, _ ext: String, subdirec
 - [ ] I1.1 Merge Q1–Q4; `make test` (Swift + JS); `make install`
 - [ ] I1.2 Live checks with a temporary env-guarded harness (not committed), fixture `~/tmp/marked fixtures/a b/doc.md`:
   - first open → `scrollY == 0`, no flash
-  - append a paragraph at the end with `printf >>` → within 1s content updated, `scrollY > 0`, target element is the new paragraph
+  - append a paragraph at the end with `printf >>` → within 1s content updated; after a further 1s (smooth scroll settles) `scrollY > 0`, target element is the new paragraph
   - atomic save (`write tmp && mv tmp doc.md`) editing line 3 → updated, scrolled near top, no banner at any poll
   - `rm doc.md` → banner within ~1s, last render still shown; restore file → banner cleared, content re-rendered
   - write Latin-1 bytes → banner "file is not UTF-8 text"; restore → cleared
@@ -128,9 +128,11 @@ extension Bundle { func requiredResource(_ name: String, _ ext: String, subdirec
 - New: `Makefile` `test` target gains the node step; S3/S5 JS tests reuse it (no further edit expected)
 - `requiredResource(subdirectory:)` lands in S1; S3/S5/S6 depend on it → merge S1 before them, or they cherry-pick W1.2
 
-## Unresolved questions
+## Resolved questions (user, 2026-10-09)
 
-1. Banner after 2 missing polls (≤1s grace for atomic saves) OK, or banner immediately?
-2. Instant `scrollIntoView` vs smooth scroll?
-3. Flash colour/duration (`#fff3a0`, 1.2s) OK?
-4. `node` as an optional dev dependency for JS tests (skipped when absent) OK?
+1. Banner after 2 consecutive missing polls (≤1s grace for atomic saves): keep
+2. Scroll: smooth
+3. Flash `#fff3a0`, 1.2s: yes
+4. `node` as optional dev dependency for JS tests (skipped when absent): yes
+
+No open questions.
