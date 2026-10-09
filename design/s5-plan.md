@@ -16,9 +16,9 @@ One stream: the slice is 1 pt and every file but one line of `WebView` is new. N
 
 ## Own decisions
 
-- **Pin `mermaid@11.17.2`** (latest 11.x on 2026-10-09; design default "latest 11.x"). 12.1.0 exists: see open question 1. Vendored as `Resources/vendor/mermaid.min.js` with `mermaid.LICENSE` (MIT) and a one-line `VERSION` (`mermaid 11.17.2 sha256 <hash>`). Fetch once with `npm pack` into its own scratch dir; never at build or run time
+- **Pin `mermaid@11.17.2`** (latest 11.x on 2026-10-09; D33: not 12.x). Vendored as `Resources/vendor/mermaid.min.js` with `mermaid.LICENSE` (MIT) and a one-line `VERSION` (`mermaid 11.17.2 sha256 <hash>`). Fetch once with `npm pack` into its own scratch dir; never at build or run time
 - **Load:** two `userScripts` lines (C2): `vendor/mermaid.min.js`, then `js/mermaid-hook.js`, both `.defaultClient`, like every app script. The hook reads the global `mermaid` only at call time, so the order is not load-bearing
-- **Init once:** `mermaid.initialize({startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true})`. Default theme; no tie to S2 fonts (open question 2)
+- **Init once:** `mermaid.initialize({startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true})`. Default theme; no tie to S2 fonts (D33)
 - **Hook (`transform` phase):** for each `#content pre > code.language-mermaid`, in document order, **sequentially** (D19, one temp id at a time): `const {svg} = await mermaid.render(id, code.textContent)`. Success → replace the `<pre>` with `<div class="mermaid" data-sourcepos="…copied from pre…">` + svg. Failure (parse or render, any throw) → keep the `<pre>`, insert after it `<div class="mermaid-error">` with `"Mermaid: " + message` set through `textContent`. The hook never throws for a bad diagram, so a bad diagram is not a hook failure (design: "Expected Mermaid failures stay inside S5's own fallback")
 - **Ids:** module counter, `mmd-<n>`, unique across renders. After each `render` (success or failure) remove any leftover `#<id>` / `#d<id>` outside `#content` (Mermaid's measuring nodes; the spike confirms which remain on 11.17.2)
 - **Pure core, injected IO** (like `RenderQueue`): `renderAll(sources, render) -> Promise<Array<{svg} | {error}>>` runs `render(id, src)` one at a time and maps each throw to `{error: message}` (`String(e)` for a non-Error). The DOM layer only collects sources and applies results. Node tests cover the core with a fake `render`
@@ -46,7 +46,7 @@ div.mermaid { text-align: center; margin: 1em 0 }
 
 | File | Owner |
 |---|---|
-| `Resources/vendor/{mermaid.min.js, mermaid.LICENSE, VERSION}`; `userScripts` lines in `WebView.swift`; `base.css` rules; `mermaid-hook.js` stub | W5 (frozen after) |
+| `Resources/vendor/{mermaid.min.js, mermaid.LICENSE, VERSION}`; `userScripts` lines in `WebView.swift`; `base.css` rules; `mermaid-hook.js` stub incl. `initialize` | W5 (frozen after) |
 | `Resources/js/mermaid-hook.js` (body), `Tests/js/mermaid.test.mjs` | K1 |
 
 ## Tasks
@@ -55,14 +55,14 @@ div.mermaid { text-align: center; margin: 1em 0 }
 
 - [ ] W5.1 Branch `s5-mermaid` from `s3-find`
 - [ ] W5.2 Vendor: `npm pack mermaid@11.17.2` in a new empty scratch dir, `tar -xzf`, copy `package/dist/mermaid.min.js` and `package/LICENSE`; write `VERSION` with the sha256 of the copied file. Do not run anything from the package
-- [ ] W5.3 Stub `mermaid-hook.js` (`renderAll` resolves `[]`, no hook registered); append both `userScripts` lines; add the CSS
+- [ ] W5.3 Stub `mermaid-hook.js`: the real `mermaid.initialize({…})` call from "Init once" behind the `typeof mermaid` guard (frozen, so the W5.4 spike runs under the production options), `renderAll` resolves `[]`, no hook registered; append both `userScripts` lines; add the CSS
 - [ ] W5.4 Spike in the running app (temporary env-guarded harness, not committed), fixture: one flowchart `A --> B --> C`, one `sequenceDiagram`, one syntax-bad block, one render-bad candidate. From `.defaultClient` call `mermaid.render` directly and record:
   - (a) `typeof mermaid.render === "function"` (the UMD global exists in the isolated world)
   - (b) the flowchart and the sequence diagram render under the real CSP (no `eval` / `unsafe-eval` block; print any thrown message)
   - (c) arrowheads: `takeSnapshot` of the flowchart SVG rect saved as PNG and inspected; the SVG has `<marker>` and `marker-end="url(#…)"`
-  - (d) failures: the syntax-bad block throws; find one block that passes `mermaid.parse` but throws in `render` (try a `gantt` with an impossible date, then a `stateDiagram-v2` / `classDiagram` edge case; time box 15 min). None found → the render-bad path is covered by K1's fake-`render` test only; record that
+  - (d) failures: the syntax-bad block throws; find one block that passes `mermaid.parse` but throws in `render` (try a `gantt` with an impossible date, then a `stateDiagram-v2` / `classDiagram` edge case; time box 15 min). None found → record that; the I5 injected-failure check covers the full DOM path either way
   - (e) leftovers: after each failure and success, list `body > [id^="mmd-"], body > [id^="dmmd-"]`
-  - (f) cost: `performance.now()` at the top of `mermaid-hook.js` with vs without the vendor line (3 launches each). Under ~300 ms extra → keep eager injection. Over → stop, ask (open question 3)
+  - (f) cost: `performance.now()` at the top of `mermaid-hook.js` with vs without the vendor line (3 launches each). Under ~300 ms extra → keep eager injection. Over → the author picks eager or lazy injection (lazy: +0.5 pt) and records the choice and numbers in "Resolved questions" (D33)
 
   Stop and ask on a CSP block (b) that no `mermaid.initialize` option fixes. Record the results here
 - [ ] W5.5 `make test` + `make app` green → commit
@@ -71,18 +71,19 @@ div.mermaid { text-align: center; margin: 1em 0 }
 
 - [ ] K1.1 Node tests first (`Tests/js/mermaid.test.mjs`), fake `render`: all ok → `[{svg}…]` in order; one throws → `{error: msg}` at its index, the rest still `{svg}`; a non-Error throw → `String(e)`; sequential (the fake records start/end; no overlap); ids unique across two `renderAll` calls; empty input → `[]` and no call
 - [ ] K1.2 Implement `renderAll`
-- [ ] K1.3 DOM layer + hook per "Own decisions": collect blocks, `renderAll` with `mermaid.render` (svg from `{svg}`), apply results, copy `data-sourcepos`, error note via `textContent`, remove leftovers per W5.4 (e); `initialize` once behind the `typeof mermaid` guard
+- [ ] K1.3 DOM layer + hook per "Own decisions": collect blocks, `renderAll` with `mermaid.render` (svg from `{svg}`), apply results, copy `data-sourcepos`, error note via `textContent`, remove leftovers per W5.4 (e) (`initialize` is already in place from W5.3)
 - [ ] K1.4 `node --test 'Tests/js/*.test.mjs'` green
 
 ### I5 — integrate + live check (sequential, main loop)
 
 - [ ] I5.1 Merge K1; `make test`; `make install`
-- [ ] I5.2 Fixture: a paragraph, a good flowchart with a node label `needle`, a syntax-bad block containing `needle`, the render-bad block from W5.4 (if any), a paragraph `needle` after. Temporary env-guarded harness (not committed):
+- [ ] I5.2 Fixture: a paragraph, a good flowchart with a node label `needle`, a syntax-bad block with `needle` only on a valid line before the error line (`flowchart TD` / `  A[needle] --> B` / `  B --> --> C`), the render-bad block from W5.4 (if any), a paragraph `needle` after. Temporary env-guarded harness (not committed):
   - good → `div.mermaid` with `<svg>` and the `<pre>`'s `data-sourcepos`; no `pre code.language-mermaid` left for it
   - bad → `<pre>` kept + `.mermaid-error` text starts with `"Mermaid: "`; the render result `{ok: true, errors: []}`; no `.render-error`
   - no `body > [id^="mmd-"], body > [id^="dmmd-"]` leftovers
   - arrowheads: snapshot PNG of the good diagram, inspected
-  - find `needle` → count = 2 (bad source + last paragraph), the diagram label not counted
+  - **injected render failure** (full hook path, independent of W5.4 (d)): the fixture also has a block with the comment line `%% fail` placed **before** the good flowchart. The harness wraps `mermaid.render` in `.defaultClient`: for a source containing `%% fail` it appends a fake measuring node `<div id="d<id>">` to `<body>` and throws `Error("injected")`; all else delegates. Trigger a render (append a line). Then: that block's `<pre>` kept + `.mermaid-error` "Mermaid: injected"; the good flowchart after it still renders; later phases ran (find `.state` count updated, no `.render-error`, `{ok: true}`); the fake `#d<id>` is gone
+  - find `needle` → count = 2 (bad source + last paragraph), the diagram label not counted. Precondition, checked first: no `.mermaid-error` text contains `needle` (Mermaid parse errors quote the failing line); if one does, move `needle` further from the error line, not the expected count
   - live reload: append a line → diagrams render again, ids increase, still no leftovers
   - **R1:** add 40 filler paragraphs before the diagram, scroll to top, change one line inside the good diagram → after the render the diagram's rect is near the viewport center
   - ≥ 2 s between launches
