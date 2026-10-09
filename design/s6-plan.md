@@ -113,8 +113,10 @@ var performLink: (LinkAction) -> Void        // default: the effects in "Own dec
 - A link to the current document with a fragment (`a.md#sec` from `a.md`) focuses the same window and does not scroll (D17 literal: `.md` → new window at top)
 - `file://` links (cancelled, like `file://` images, D25)
 
-## Open questions
+## Resolved questions (user, 2026-10-09, D34)
 
-1. Self-link `this.md#sec`: keep the D17 literal behavior (focus, no scroll), or scroll in place (+0.5 pt)? Recommend keep, deferred
-2. `file://` links: cancel (consistent with D25), or treat like `marked://doc` (+0.5 pt)? Recommend cancel
-3. Missing link target: system error alert (`presentError`)? Recommend yes
+1. Self-link `this.md#sec`: D17 literal (focus, no scroll), deferred
+2. `file://` links: cancel (as D25)
+3. Missing link target: system error alert (`presentError`)
+
+No open questions.
