@@ -8,6 +8,7 @@ Native macOS markdown reader. Read-only. Live reload with scroll-to-change. Q&A 
 - Min macOS 14. SwiftUI `DocumentGroup(viewing:)` → read-only, multi-window, File>Open, Open Recent, Finder Open With, drag-drop, `open -a` for free
 - `DocumentGroup` supplies only the URL: `ReaderView` reads `@Environment(\.documentConfiguration)?.fileURL`. `MarkdownDocument.init` stores raw bytes, never throws on decode. `FileWatcher` (S0) owns every read: S0 ships `read()` (bytes → UTF-8 decode) used for the first render; non-UTF-8 at first open → S0 renders a plain error message in the page. S1 adds the 0.5s poll, diff, and the reload banner (Q10). Viewer-only document has no save path, so no NSDocument write conflict; any NSDocument reload of its bytes is ignored. File unreadable at open time → system open alert (accepted; no window exists yet)
 - Render: `swiftlang/swift-cmark` pinned `.revision("0c8947bbd58c491c54aae114aca40621cddc8357")` (gfm head 2026-10-09; products `cmark-gfm` + `cmark-gfm-extensions` confirmed in its Package.swift). Extensions: table, strikethrough, autolink, tasklist. Options: `CMARK_OPT_SOURCEPOS | CMARK_OPT_UNSAFE`
+- `==` stays literal inside code blocks and inline code (Marked 2 wrongly renders it as a highlight there). cmark-gfm has no highlight syntax, so `==` is literal everywhere today. Pinned by `HTMLRendererTests` (`doubleEqualsLiteralIn*`). Any future highlight feature must skip code
 - WKWebView. `allowsContentJavaScript = false`. All app JS in `.defaultClient` world: `WKUserScript(source:injectionTime:forMainFrameOnly:in: .defaultClient)` and every call the async overload `try await callAsyncJavaScript(_:arguments:in: nil, contentWorld: .defaultClient)` (SDK-checked 2026-10-09: async form uses `contentWorld:`; `in: nil, in:` is the completion-handler form). Never page world. Spike (a) proves both run with page JS off; it gates the hook design, so it runs first in S0
 - Load: `WKURLSchemeHandler` for scheme `marked:`, read-only, GET only, two hosts. No `<base>`, no `baseURL`/`loadFileURL` reliance:
   - `marked://app/base.css` → the only file fetched by URL; shell links it by absolute URL. Handler serves nothing else on this host (403)
@@ -132,6 +133,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 ## Deferred (not in any slice)
 
+- `==highlight==` (`<mark>`) outside code: not supported; if added, never inside code blocks or inline code (see Decisions)
 - Syntax highlight in code blocks, dark mode, TOC, print/export, TOML `+++`, large-file perf
 
 ## Rejected
