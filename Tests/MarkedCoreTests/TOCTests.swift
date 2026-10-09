@@ -39,4 +39,19 @@ struct TOCTests {
             #expect(throws: TOCError.self, "\(String(describing: raw))") { try TOC.parse(raw) }
         }
     }
+
+    @Test func currentAcceptsIndexes() throws {
+        #expect(try TOC.current(0) == 0)
+        #expect(try TOC.current(7) == 7)
+        #expect(try TOC.current(-1) == nil)
+    }
+
+    @Test func currentRejectsOtherShapes() {
+        let bad: [Any?] = [-2, 1.5, "1", nil, [1], ["i": 1], true]
+        for raw in bad {
+            #expect(throws: TOCError.self, "\(String(describing: raw))") { try TOC.current(raw) }
+        }
+        let e = #expect(throws: TOCError.self) { try TOC.current("x") }
+        #expect(e?.description == "toc spy post returned x; expected an integer ≥ -1")
+    }
 }
