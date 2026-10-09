@@ -41,6 +41,10 @@ struct MarkedApp: App {
         }
         .commands {
             FindCommands()
+            SidebarCommands()
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") { WebView.webView(in: NSApp.keyWindow)?.printAsSheet() }.keyboardShortcut("p")
+            }
             CommandGroup(after: .toolbar) {
                 ForEach(Style.allCases, id: \.self) { s in
                     Toggle(s.title, isOn: Binding(

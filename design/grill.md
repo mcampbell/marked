@@ -48,3 +48,16 @@
 - D33 (user) S5: pin mermaid 11.17.2 (not 12.x); default Mermaid theme, no S2 font tie-in; load-cost call (eager vs lazy injection) made by the author after the W5.4 measurement
 - D34 (user) S6: self-link `this.md#sec` keeps D17 literal (focus, no scroll; deferred); `file://` links cancelled (as D25); missing link target → system error alert (`presentError`)
 - D35 (user) S8: `<mark>` keeps the user-agent default color; mid-word `a==b==c` marks `b`
+- D36 (user) S10 TOC = native SwiftUI sidebar (not in-page). Swift reads headings after each render; click scrolls
+- D37 (user) S10 lists every `h1`–`h6`, indented by level
+- D38 (user) S11 syntax highlight: vendored highlight.js, offline; only labeled ` ```lang ` fences with a known language; unlabeled/unknown stay plain
+- D39 (user) S12 PDF = File > Print (Cmd-P) + the system panel's "Save as PDF". No separate export item
+- D40 (user) S10 toggle: View > Show Sidebar, Ctrl-Cmd-S; hidden by default; open state global, persisted
+- D41 (user) Scroll-spy wanted (sidebar marks the heading being read). Author: own slice S13 after S10, so S10 ships alone
+- D42 (user) S11 theme highlight.js `github.css` (light), all styles; prebuilt common language bundle
+- D43 (user) S12 print look: current style font, full paper width, backgrounds printed, no break inside code/diagram/table row, heading kept with next block, find highlights hidden
+- D44 (user) No printed header, footer, or page numbers (rejected, not deferred)
+- D45 (author) TOC go-to by index, not heading id; click via `Button`, not list selection; theme CSS served as `marked://app/hljs.css`; print replaces `.printItem` and prints the DOM at click time
+- D46 (user) Keep the title-bar sidebar toggle button. (author) App-host route in pure `DocURL.appFile`; one multi-line `vendor/VERSION`; print header/footer off via `NSPrintHeaderAndFooter` key; Cmd-P with no document window = enabled no-op; shell-reload TOC refresh rides `onRendered`
+- D47 (user) S13 bottom rule: scrollable page scrolled to its end → mark the last heading whose top is inside the viewport (short last sections get marked). One-screen docs: no bottom rule
+- D48 (user) S13 spike: if the `.defaultClient` message handler fails, stop and ask (no pre-approved polling fallback)

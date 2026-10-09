@@ -9,16 +9,18 @@ struct WebView: NSViewRepresentable {
     @Binding var styleFailure: String?
     @Binding var banner: String?
     let find: FindController
+    let toc: TOCController
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> WKWebView {
+    func makeNSView(context: Context) -> NSView {
         let c = context.coordinator
         c.setFailure = { [failure = $failure] in failure.wrappedValue = $0 }
         c.setStyleFailure = { [styleFailure = $styleFailure] in styleFailure.wrappedValue = $0 }
         c.setBanner = { [banner = $banner] in banner.wrappedValue = $0 }
         let cfg = WKWebViewConfiguration()
         cfg.defaultWebpagePreferences.allowsContentJavaScript = false
+        cfg.preferences.shouldPrintBackgrounds = true
         cfg.setURLSchemeHandler(SchemeHandler(), forURLScheme: DocURL.scheme)
         // Later slices append their scripts here.
         let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js"),
@@ -26,32 +28,49 @@ struct WebView: NSViewRepresentable {
                                  Self.resource("mermaid.min", "js", subdirectory: "vendor"),
                                  Self.resource("mermaid-hook", "js", subdirectory: "js"),
                                  Self.resource("anchors", "js", subdirectory: "js"),
-                                 Self.resource("highlight", "js", subdirectory: "js")]
+                                 Self.resource("highlight", "js", subdirectory: "js"),
+                                 Self.resource("highlight.min", "js", subdirectory: "vendor"),
+                                 Self.resource("syntax", "js", subdirectory: "js"),
+                                 Self.resource("toc", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
         }
+        cfg.userContentController.add(TOCMessages(c), contentWorld: .defaultClient, name: "toc")
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = c
         c.findController = find
+        c.tocController = toc
         c.start(web, fileURL: fileURL, find: find.session)
         c.apply(style)
-        return web
+        // Container, not the web view itself: SwiftUI keeps a closed document window's views alive
+        // (dismantleNSView never runs), so on close the coordinator detaches the web view to free it.
+        let box = NSView()
+        web.frame = box.bounds
+        web.autoresizingMask = [.width, .height]
+        box.addSubview(web)
+        c.freeOnClose(web)
+        return box
     }
 
-    func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.apply(style) }
+    func updateNSView(_ nsView: NSView, context: Context) { context.coordinator.apply(style) }
 
-    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
         coordinator.stop()
     }
 
-    /// The find controller of the document shown in `window`, if any.
-    @MainActor static func findController(in window: NSWindow?) -> FindController? {
+    /// The web view of the document shown in `window`, if any.
+    @MainActor static func webView(in window: NSWindow?) -> WKWebView? {
         func web(in v: NSView) -> WKWebView? {
             if let w = v as? WKWebView { return w }
             return v.subviews.lazy.compactMap(web).first
         }
-        return window?.contentView.flatMap(web).flatMap { ($0.navigationDelegate as? Coordinator)?.findController }
+        return window?.contentView.flatMap(web)
+    }
+
+    /// The find controller of the document shown in `window`, if any.
+    @MainActor static func findController(in window: NSWindow?) -> FindController? {
+        (webView(in: window)?.navigationDelegate as? Coordinator)?.findController
     }
 
     static func resource(_ name: String, _ ext: String, subdirectory: String? = nil) -> String {
@@ -80,6 +99,9 @@ struct WebView: NSViewRepresentable {
         private var hasRendered = false
         private var shell: URL?
         weak var findController: FindController?
+        weak var tocController: TOCController?
+        /// Bumped per TOC refresh; a reply from an older refresh is dropped.
+        private var tocGeneration = 0
         /// Runs the side effect of a link click. A seam so a live check can record instead of open.
         var performLink: (LinkAction) -> Void = { action in
             switch action {
@@ -110,7 +132,27 @@ struct WebView: NSViewRepresentable {
             queue.setStyle(WebView.resource(style.resource, "css", subdirectory: "styles"))
         }
 
-        func stop() { watcher?.stop() }
+        func stop() {
+            watcher?.stop()
+            if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+            closeObserver = nil
+        }
+
+        private var closeObserver: NSObjectProtocol?
+
+        /// When this web view's window closes: stop polling and drop the web view, which then deallocates
+        /// and closes its page. The closed window itself stays alive (SwiftUI DocumentGroup, macOS 26).
+        func freeOnClose(_ web: WKWebView) {
+            closeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self, weak web] note in
+                let closing = (note.object as AnyObject?).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    guard let web, let window = web.window, closing == ObjectIdentifier(window) else { return }
+                    self?.stop()
+                    web.removeFromSuperview()
+                }
+            }
+        }
 
         /// Follows symlinks: the handler serves the target, so the stamp must change when the target does.
         nonisolated static func mtime(_ path: String) -> Double? {
@@ -152,7 +194,14 @@ struct WebView: NSViewRepresentable {
                 self?.setFailure(nil)   // bridge works again; hook errors show in the page
                 return RenderResult(ok: ok, errors: errors)
             }
-            queue.onRendered = { [weak find] in find?.renderDidComplete() }
+            tocController?.go = { [weak web] i in
+                Task { _ = try? await web?.callAsyncJavaScript(
+                    "return Marked.toc.go(i)", arguments: ["i": i], in: nil, contentWorld: .defaultClient) }
+            }
+            queue.onRendered = { [weak find, weak self, weak web] in
+                find?.renderDidComplete()
+                if let web { self?.refreshTOC(web) }
+            }
             queue.changedLine = LineDiff.firstChangedLine
             self.queue = queue
             queue.onFailure = { [weak self] err in
@@ -186,6 +235,31 @@ struct WebView: NSViewRepresentable {
             w.start()
         }
 
+        /// Re-reads the headings after a render. Runs from `onRendered`, which also fires after a shell reload.
+        func refreshTOC(_ web: WKWebView) {
+            tocGeneration += 1
+            let gen = tocGeneration
+            Task { [weak self, weak web] in
+                guard let web else { return }
+                let entries: [TOCEntry]
+                do {
+                    let raw = try await web.callAsyncJavaScript(
+                        "return Marked.toc.headings()", arguments: [:], in: nil, contentWorld: .defaultClient)
+                    entries = try TOC.parse(raw)
+                } catch {
+                    NSLog("Marked toc failed: \(error)")
+                    entries = []
+                }
+                guard let self, gen == tocGeneration else { return }
+                tocController?.update(entries)
+            }
+        }
+
+        /// S13 scroll-spy post from `js/toc.js`.
+        func tocMessage(_ body: Any) {
+            do { tocController?.mark(try TOC.current(body)) } catch { NSLog("Marked toc spy: \(error)") }
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             queue?.markReady()
         }
@@ -204,5 +278,33 @@ struct WebView: NSViewRepresentable {
             decisionHandler(a == .allow ? .allow : .cancel)
             if a != .allow && a != .cancel { performLink(a) }
         }
+    }
+}
+
+extension WKWebView {
+    /// One place for print settings, so the Print command and a live check print the same way.
+    func makePrintOperation() -> NSPrintOperation {
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        info.dictionary()[NSPrintInfo.AttributeKey.headerAndFooter] = false
+        info.isVerticallyCentered = false
+        return printOperation(with: info)
+    }
+
+    /// Print panel as a sheet on this view's window; no window → no-op.
+    func printAsSheet() {
+        guard let window else { return }
+        makePrintOperation().runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+}
+
+/// Receives `toc` posts in the `.defaultClient` world. The content controller holds this strongly;
+/// it holds the coordinator weakly, so the handler never keeps the coordinator alive.
+final class TOCMessages: NSObject, WKScriptMessageHandler {
+    private weak var coordinator: WebView.Coordinator?
+
+    init(_ coordinator: WebView.Coordinator) { self.coordinator = coordinator }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        coordinator?.tocMessage(message.body)
     }
 }

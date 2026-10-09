@@ -93,4 +93,19 @@ import Testing
         #expect(DocURL.imageFile(for: .init(string: "marked://doc/tmp/v1.png/noext")!, probe: probe) == nil)
         #expect(DocURL.imageFile(for: .init(string: "marked://doc/tmp/a.b/c.PNG")!, probe: probe) == "/tmp/a.b/c.PNG")
     }
+
+    private func app(_ url: String) -> String? {
+        DocURL.appFile(for: .init(string: url)!).map { "\($0.subdirectory ?? "-")/\($0.name).\($0.ext)" }
+    }
+
+    @Test func appFiles() {
+        #expect(app("marked://app/base.css") == "-/base.css")
+        #expect(app("marked://app/hljs.css") == "vendor/hljs-github.css")
+    }
+
+    @Test(arguments: ["marked://app/other.css", "marked://app/vendor/hljs-github.css", "marked://app/js/syntax.js",
+                      "marked://app/", "marked://doc/tmp/base.css", "marked://doc/hljs.css", "https://app/base.css"])
+    func appFileRejects(url: String) {
+        #expect(app(url) == nil)
+    }
 }
