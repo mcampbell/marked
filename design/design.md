@@ -167,8 +167,8 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 ### S13 scroll-spy rules
 
-- `js/toc.js` adds a passive `scroll` listener, throttled to one `requestAnimationFrame`. Current = index of the last heading whose top is ≤ 8 px from the viewport top; none → `-1` (no mark). Posts `window.webkit.messageHandlers.toc.postMessage(i)` only when it changes. A `position` hook resets the last posted value and recomputes after each render
-- Swift: `userContentController.add(WeakHandler(coordinator), contentWorld: .defaultClient, name: "toc")`; the wrapper breaks the controller → handler retain cycle. `TOC.current(raw, count:) -> Int?` (pure, tested): accepts an integer `-1..<count`, else `nil` + log
+- `js/toc.js` adds a passive `scroll` listener, throttled to one `requestAnimationFrame`. Current = index of the last heading whose top is ≤ 8 px from the viewport top; none → `-1` (no mark). Bottom rule (D47): page scrollable and scrolled to its end → last heading whose top is inside the viewport. Posts `window.webkit.messageHandlers.toc.postMessage(i)` only when it changes. A `position` hook resets the last posted value and recomputes after each render
+- Swift: `userContentController.add(WeakHandler(coordinator), contentWorld: .defaultClient, name: "toc")`; the wrapper breaks the controller → handler retain cycle. `TOC.current(raw) throws -> Int?` (pure, tested): integer `≥ -1` (`-1` → `nil`, no mark), else throws → log. Range (`< entries.count`) is checked at display: the `position` hook posts before `onRendered` refreshes the entries (s13-plan)
 - Sidebar marks the current row and keeps it visible (`ScrollViewReader.scrollTo`). Setting the mark never scrolls the page (S10 click rule)
 - S13 spike: `messageHandlers` is reachable from a `.defaultClient` user script with page JS off
 
