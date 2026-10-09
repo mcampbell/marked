@@ -19,9 +19,9 @@ Critical path: W3 → join(K1–K4) → I3. Expected longest: K1 or K2.
 
 ## Own decisions
 
-- **One state machine, in MarkedCore.** `FindSession` (like `RenderQueue`: `@MainActor`, injected async `send`, fully unit-tested) owns visibility, the desired query, readiness, request ordering, restore after a shell reload, and errors. The app's `FindController` is a thin `ObservableObject` that forwards UI intents to the session and republishes `session.onChange` for SwiftUI. The bridge (K4) only wires `send` and calls `markReady` / `shellWillReload` / `renderDidComplete`; it never sets status itself (review item 1)
+- **One state machine, in MarkedCore.** `FindSession` (like `RenderQueue`: `@MainActor`, injected async `send`, fully unit-tested) owns visibility, the desired query and saved match index, content readiness, request ordering, restore after a shell reload, and errors. The app's `FindController` is a thin `ObservableObject` that forwards UI intents to the session and republishes `session.onChange` for SwiftUI. The bridge (K4) only wires `send` and calls `shellWillReload` / `renderDidComplete`; it never sets status itself (review item 1)
 - **Ordering (latest wins).** Every request to JS carries a session `revision` (incremented on each new request). A result is applied only if its revision is still the latest; older results are dropped. `close()` bumps the revision, so a late `.set` result cannot repaint a closed bar's label. The view's debounce `Task` is cancelled in `hide()`, and `FindSession.type(_:)` is ignored while not visible, so a debounced query cannot reach JS after Esc (review item 2). Requests are not queued: JS calls are cheap and the revision rule makes order irrelevant for the label; JS itself applies `set`/`step`/`clear` in call order
-- **Readiness and shell reload.** Before `markReady`, the session sends nothing; it keeps the desired query. On `markReady` (shell `didFinish`), if the bar is visible with a non-empty query, it sends `.restore(query, index)` — re-highlight without scrolling, so S1's scroll-to-change is not overridden. `shellWillReload()` sets `ready = false` and bumps the revision (the old page's results are void); the next `markReady` restores. A plain content render keeps JS state; `renderDidComplete()` asks for `.state` to refresh the label (review item 3)
+- **Readiness and shell reload.** The session is "ready" only once **content has rendered**, not when the shell loads: `markReady` only schedules the style and the first render (`RenderQueue` sends the style first), so `#content` can still be empty then. Until the first `renderDidComplete()`, the session sends nothing and keeps the desired query and the saved match index. The first `renderDidComplete()` after start or after `shellWillReload()` sends `.restore(query, savedIndex)` (if the bar is open with a query) — re-highlight against real content, no scroll, so S1's scroll-to-change is not overridden; later `renderDidComplete()` calls send `.state`. `shellWillReload()` clears "content ready", bumps the revision (old results void), and keeps the saved index. The session has no `markReady` (review items 3 and 3b)
 - **Errors.** `send` throws on a bridge failure or a decode miss. On a throw: keep the last good `status`, set `error` (label "Find failed"), log; never report it as zero matches. Errors clear on the next successful result. `renderDidComplete()` is fire-and-forget and non-throwing, called **after** the render result is decoded and returned to the queue — a failed state refresh can never turn a displayed render into a render failure (review item 4)
 - **Highlight backend.** Preferred: the **CSS Custom Highlight API** (`CSS.highlights`, `Highlight`, `Range`): no DOM change, no cleanup, ranges cross element boundaries natively. Fallback (only if the W3 spike fails): wrap each match segment in `<span class="find-hit">` (current: `find-hit find-current`), unwrap and `normalize()` before every re-apply and on `clear`. Both backends sit behind the same `Marked.find` API; W3 records which one K1 builds, and the I3 checks for that backend apply (review item 5)
 - **Matching.** Case-insensitive, Unicode-aware: escape the query, turn each whitespace run into `\s+`, `new RegExp(…, "giu")`; offsets index the original text. Non-overlapping, left to right. Empty query → no matches
@@ -57,19 +57,23 @@ public enum FindCommand: Equatable, Sendable {
 public struct FindView: Equatable, Sendable {  // what the bar shows
     public let isVisible: Bool
     public let label: String                   // "" | "No results" | "3 of 12" | "Find failed"
+    public init(isVisible: Bool, label: String)  // explicit: synthesized memberwise inits are internal
+    public static let hidden: FindView         // (false, "")
 }
+public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 @MainActor public final class FindSession {
-    public init(send: @escaping (FindCommand) async throws -> FindStatus)
+    public init()                              // `send` defaults to throwing FindBridgeNotWired
+    public var send: (FindCommand) async throws -> FindStatus   // set by the coordinator (K4)
     public var onChange: (FindView) -> Void    // default: no-op
+    public private(set) var view: FindView     // current snapshot; starts as .hidden
     public private(set) var query: String
     public func open()
     public func close()
     public func type(_ query: String)          // ignored while closed
     public func next()
     public func previous()
-    public func markReady()
     public func shellWillReload()
-    public func renderDidComplete()            // non-throwing, fire-and-forget
+    public func renderDidComplete()            // non-throwing, fire-and-forget; first call after start/reload restores
 }
 
 // Marked/FindController.swift (app): thin ObservableObject over FindSession
@@ -77,7 +81,7 @@ public struct FindView: Equatable, Sendable {  // what the bar shows
     @Published private(set) var view: FindView
     @Published var text: String                // bound to the field; debounced into session.type
     let session: FindSession
-    init(session: FindSession)
+    init(session: FindSession)                 // view = session.view; subscribes to onChange
     func show(); func hide(); func next(); func previous()
 }
 ```
@@ -97,9 +101,9 @@ public struct FindView: Equatable, Sendable {  // what the bar shows
 ### W3 — stubs, CSS, spike (sequential, main loop)
 
 - [ ] W3.1 Branch `s3-find` from `s2-styles`
-- [ ] W3.2 Stubs per "Frozen contracts": Swift compiles (`FindSession` methods no-ops, `onChange` default no-op); JS returns `{count: 0, index: -1}` from every method; append `resource("find", "js", subdirectory: "js")` to `userScripts`
-- [ ] W3.3 Spike in the running app (temporary harness, not committed), from the `.defaultClient` world: register `find-hit` on a `Range` over a known word; then (a) `CSS.highlights.has("find-hit")`, (b) `#content.innerHTML` unchanged, and (c) **visible paint**: `WKWebView.takeSnapshot` and sample the pixel at the centre of the range's rect — it must be the `find-hit` colour (within a small tolerance), and plain text elsewhere must not be. All three pass → Highlight API; any fails → span fallback. Record the result and the backend here
-- [ ] W3.4 `base.css`: `::highlight(find-hit) { background: #ffe58a } ::highlight(find-current) { background: #ff9632 }` and the fallback equivalents `.find-hit { background: #ffe58a } .find-current { background: #ff9632 }` (keep both; the unused pair costs nothing)
+- [ ] W3.2 Stubs per "Frozen contracts", every public member present so K3 and K4 build without K2: Swift compiles (`FindSession()` init, mutable `send`, `view` = `.hidden`, methods no-ops, `onChange` default no-op; `FindView.init` and `.hidden`); JS returns `{count: 0, index: -1}` from every method; append `resource("find", "js", subdirectory: "js")` to `userScripts`
+- [ ] W3.3 `base.css` (before the spike, so the paint check has a colour to find): `::highlight(find-hit) { background: #ffe58a } ::highlight(find-current) { background: #ff9632 }` and the fallback equivalents `.find-hit { background: #ffe58a } .find-current { background: #ff9632 }` (keep both; the unused pair costs nothing)
+- [ ] W3.4 Spike in the running app (temporary harness, not committed), from the `.defaultClient` world, after W3.3's CSS is in the bundle: pick a range over a run of several words in a plain paragraph; take a `WKWebView.takeSnapshot` of its rect **before** highlighting; register `find-hit` on the range; wait for paint (two `requestAnimationFrame`s, then ~100 ms); snapshot the same rect again. Pass when (a) `CSS.highlights.has("find-hit")`, (b) `#content.innerHTML` unchanged, and (c) in the "after" image ≥ 30% of pixels are within a small tolerance of `#ffe58a`, while in the "before" image < 2% are (counting a region, not one pixel, so glyph pixels cannot cause a false fail). All pass → Highlight API; any fails → span fallback. Record the result and the backend here
 - [ ] W3.5 `make test` + `make app` green → commit → fork worktrees
 
 ### K1 — find.js (builder)
@@ -118,9 +122,9 @@ public struct FindView: Equatable, Sendable {  // what the bar shows
   - latest wins: `type("a")` (suspended), `type("ab")` → resume "ab" first then "a" → label from "ab" only
   - type then close before the result: `type("a")` (suspended), `close()` → `.clear` sent; resume "a" → label stays `""`, `isVisible` false
   - `next`/`previous` → `.step(+1)` / `.step(-1)`; ignored when closed or query empty
-  - not ready: `open` + `type("a")` before `markReady` → nothing sent; `markReady` → `.restore("a", 0)`
-  - shell reload: with results showing (index 2), `shellWillReload()` → a suspended old result arriving later is dropped; `markReady` → `.restore("a", 2)`
-  - `renderDidComplete()` while open → `.state`; while closed → nothing; a throwing `.state` → "Find failed", no throw escapes
+  - no content yet: `open` + `type("a")` before any `renderDidComplete()` → nothing sent; first `renderDidComplete()` → `.restore("a", 0)`
+  - shell reload with a non-zero match: results showing at index 2, `shellWillReload()` → nothing sent; a suspended old result arriving later is dropped; still nothing sent before content returns; first `renderDidComplete()` → `.restore("a", 2)` (saved index kept across the empty-shell interval)
+  - later `renderDidComplete()` while open → `.state`; while closed → nothing; a throwing `.state` → "Find failed", no throw escapes
   - error then success → error cleared
 - [ ] K2.2 Implement per "Own decisions" (revision counter, ready flag, desired query and index, last good status, error)
 
@@ -128,14 +132,14 @@ public struct FindView: Equatable, Sendable {  // what the bar shows
 
 - [ ] K3.1 `FindController`: forwards to the session; republishes `session.onChange` into `view`; debounces `text` changes (~150 ms) into `session.type`; `hide()` cancels the pending debounce `Task`, then `session.close()`
 - [ ] K3.2 `FindBar` view: `TextField` bound to `text` (focused on show via `@FocusState`), label, previous/next buttons, close button; `.onSubmit` → next; Shift-Enter → previous (`onKeyPress` with `.shift`); Esc → hide
-- [ ] K3.3 `ReaderView`: own the `FindController` (`@StateObject`, built with a `FindSession` whose `send` the coordinator sets); bar in the top `safeAreaInset` above the existing banner, shown when `view.isVisible`; `.focusedSceneValue(\.findController, controller)`; pass the session into `WebView`
+- [ ] K3.3 `ReaderView`: own the `FindController` (`@StateObject`, built with `FindSession()`; the coordinator later sets `session.send`); bar in the top `safeAreaInset` above the existing banner, shown when `view.isVisible`; `.focusedSceneValue(\.findController, controller)`; pass the session into `WebView`
 - [ ] K3.4 `MarkedApp`: `CommandGroup(after: .textEditing)` with "Find…" (Cmd-F), "Find Next" (Cmd-G), "Find Previous" (Shift-Cmd-G) on `@FocusedValue(\.findController)`, disabled when nil. Ctrl-F: one local `NSEvent.addLocalMonitorForEvents(matching: .keyDown)` mapping Control-F (no other modifiers) to the focused controller's `show()`, swallowing the event
 - [ ] K3.5 `make app` builds with no warnings in owned files
 
 ### K4 — WebView bridge (builder)
 
 - [ ] K4.1 `WebView` takes the `FindSession`; the coordinator sets `session.send` to call the matching `Marked.find.*` via `callAsyncJavaScript(…, in: nil, contentWorld: .defaultClient)` and decode `{count, index}`; a decode miss **throws** (the session turns it into "Find failed")
-- [ ] K4.2 `didFinish` → after `queue.markReady()`, `session.markReady()`; `webViewWebContentProcessDidTerminate` → `session.shellWillReload()` beside `queue.shellWillReload()`
+- [ ] K4.2 `webViewWebContentProcessDidTerminate` → `session.shellWillReload()` beside `queue.shellWillReload()`. No session call on `didFinish`: find waits for content (`renderDidComplete`)
 - [ ] K4.3 After a render result decodes successfully in the send closure, call `session.renderDidComplete()` (non-throwing; it starts its own task) before returning the result — the render closure's outcome must not depend on it
 - [ ] K4.4 `make app` builds; `make test` green
 
@@ -147,7 +151,7 @@ public struct FindView: Equatable, Sendable {  // what the bar shows
   - from index 0, `next` × `count` returns to index 0; `previous` from 0 goes to `count - 1`
   - append to the file → highlights survive the render, the count updates, scroll follows S1 (not find)
   - backend checks — Highlight API: `#content.innerHTML` unchanged after find, `CSS.highlights` empty after `clear`; span fallback: `textContent` unchanged after find, no `.find-hit` left after `clear`
-  - shell reload restore: harness calls `webViewWebContentProcessDidTerminate`'s path (shell reload) with the bar open → after `didFinish`, highlights and the label return, no scroll jump
+  - shell reload restore: bar open on match 3 of 5 → harness takes the `webViewWebContentProcessDidTerminate` path (shell reload) → after the first render, highlights return with current = 3 of 5, no scroll jump
   - forced bridge failure (harness makes `send` throw once) → label "Find failed", then a successful `next` clears it
   - pause ≥ 2 s between app launches (Launch Services `-600` race seen in S2)
 - [ ] I3.3 Manual (needs a person at the keyboard): Cmd-F and Ctrl-F open the bar with focus in the field; Enter / Shift-Enter / Cmd-G / Shift-Cmd-G move; Esc closes and clears (also when pressed right after typing); the label reads "n of m"
