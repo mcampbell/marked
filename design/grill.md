@@ -58,3 +58,4 @@
 - D43 (user) S12 print look: current style font, full paper width, backgrounds printed, no break inside code/diagram/table row, heading kept with next block, find highlights hidden
 - D44 (user) No printed header, footer, or page numbers (rejected, not deferred)
 - D45 (author) TOC go-to by index, not heading id; click via `Button`, not list selection; theme CSS served as `marked://app/hljs.css`; print replaces `.printItem` and prints the DOM at click time
+- D46 (user) Keep the title-bar sidebar toggle button. (author) App-host route in pure `DocURL.appFile`; one multi-line `vendor/VERSION`; print header/footer off via `NSPrintHeaderAndFooter` key; Cmd-P with no document window = enabled no-op; shell-reload TOC refresh rides `onRendered`
