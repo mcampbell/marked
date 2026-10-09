@@ -74,44 +74,45 @@ struct TOCSidebar: View { @ObservedObject var toc: TOCController }   // stub: Te
 
 ### W10 — stubs + spike (sequential, main loop)
 
-- [ ] W10.1 Branch `s10-toc` from `s10-s13-design`
-- [ ] W10.2 Stubs per "Frozen contracts"; append `resource("toc", "js", subdirectory: "js")` to `userScripts`; `WebView` gains `let toc: TOCController` (unused); `ReaderView` passes a `@StateObject` one; `MarkedApp.commands` gains `SidebarCommands()`
-- [ ] W10.3 Spike (temp, env-guarded harness, not committed): wrap `ReaderView` body in the `NavigationSplitView` + `tocVisible` binding from "Visibility", sidebar = stub. Launch with `-ApplePersistenceIgnoreState YES`, two windows. Check: (a) sidebar hidden at first launch; (b) View menu has the sidebar item with Ctrl-Cmd-S (walk `NSApp.mainMenu`); (c) posted Ctrl-Cmd-S (`NSApp.postEvent`) → `UserDefaults "tocVisible"` flips `true`, both windows' first split subview not collapsed; again → `false`, both collapsed; (d) relaunch with `true` stored → sidebar shown. Any of (b)–(c) fails → fallback: drop `SidebarCommands()`, add `CommandGroup(replacing: .sidebar) { Toggle("Show Sidebar", isOn: $tocVisible).keyboardShortcut("s", modifiers: [.control, .command]) }` on `MarkedApp`'s own `@AppStorage("tocVisible")`; re-run (c). Record result here
-- [ ] W10.4 Keep the spike's `NavigationSplitView` wrapper in `ReaderView` (K3 fills the sidebar). `make test` + `make app` green; app still renders → commit → fork worktrees
+- [x] W10.1 Branch `s10-toc` from `s10-s13-design`
+- [x] W10.2 Stubs per "Frozen contracts"; append `resource("toc", "js", subdirectory: "js")` to `userScripts`; `WebView` gains `let toc: TOCController` (unused); `ReaderView` passes a `@StateObject` one; `MarkedApp.commands` gains `SidebarCommands()`
+- [x] W10.3 Spike (temp, env-guarded harness, not committed): wrap `ReaderView` body in the `NavigationSplitView` + `tocVisible` binding from "Visibility", sidebar = stub. Launch with `-ApplePersistenceIgnoreState YES`, two windows. Check: (a) sidebar hidden at first launch; (b) View menu has the sidebar item with Ctrl-Cmd-S (walk `NSApp.mainMenu`); (c) posted Ctrl-Cmd-S (`NSApp.postEvent`) → `UserDefaults "tocVisible"` flips `true`, both windows' first split subview not collapsed; again → `false`, both collapsed; (d) relaunch with `true` stored → sidebar shown. Any of (b)–(c) fails → fallback: drop `SidebarCommands()`, add `CommandGroup(replacing: .sidebar) { Toggle("Show Sidebar", isOn: $tocVisible).keyboardShortcut("s", modifiers: [.control, .command]) }` on `MarkedApp`'s own `@AppStorage("tocVisible")`; re-run (c). Record result here
+  - Result 2026-10-09: pass, no fallback. `SidebarCommands` adds View > "Show Sidebar" ⌃⌘S; the item writes back into the `@AppStorage` binding; both windows toggle together; relaunch keeps the state. Harness drives the key through `NSApp.mainMenu.performKeyEquivalent` (posted events queued while the app was not frontmost)
+- [x] W10.4 Keep the spike's `NavigationSplitView` wrapper in `ReaderView` (K3 fills the sidebar). `make test` + `make app` green; app still renders → commit → fork worktrees
 
 ### K1 — TOC model (builder)
 
-- [ ] K1.1 Tests first (`Tests/MarkedCoreTests/TOCTests.swift`, no `import Foundation`; payload as `[[String: Any]]` literals):
+- [x] K1.1 Tests first (`Tests/MarkedCoreTests/TOCTests.swift`, no `import Foundation`; payload as `[[String: Any]]` literals):
   - `[]` → `[]`
   - levels 2, 3 → depth 0, 1; levels 1…6 → depth 0…5; levels 2, 4 → depth 0, 2 (gaps kept); levels 3, 1, 2 → depth 2, 0, 1
   - text kept verbatim (`"Café 日本"`, `"C++ & Go!"`); `""` → `title == "—"`, `text == ""`; non-empty → `title == text`
   - throws `TOCError`: `nil`; `"x"`; `[1]`; `[["text": "a"]]` (no level); level `0`; level `7`; level `"1"`; level `1.5`; `[["level": 1]]` (no text); text `5`
   - order kept (3 entries in, same 3 out)
-- [ ] K1.2 Implement (`import Foundation` in `TOC.swift` so the app's `NSNumber` levels cast with `as? Int`)
+- [x] K1.2 Implement (`import Foundation` in `TOC.swift` so the app's `NSNumber` levels cast with `as? Int`)
 
 ### K2 — toc.js (builder)
 
-- [ ] K2.1 Node tests first (`Tests/js/toc.test.mjs`, `createRequire` as `anchors.test.mjs`; fake root `{querySelectorAll(sel) { seen = sel; return items } }`, fake headings `{tagName, textContent, scrollIntoView(o) { calls.push(o) }}`):
+- [x] K2.1 Node tests first (`Tests/js/toc.test.mjs`, `createRequire` as `anchors.test.mjs`; fake root `{querySelectorAll(sel) { seen = sel; return items } }`, fake headings `{tagName, textContent, scrollIntoView(o) { calls.push(o) }}`):
   - selector passed is exactly `"h1, h2, h3, h4, h5, h6"`
   - `H1`…`H6` → levels 1…6; order kept
   - text `"  a\n\tb  "` → `"a b"`; `"a  b"` → `"a b"`; `""` → `""`
   - `tocHeadings(null)` → `[]`
   - `tocGo(root, 1)` with 3 headings → `true`, only heading 1 got `scrollIntoView({block: "start"})`
   - `tocGo` with `-1`, `3`, `1.5`, `"0"`, `NaN` → `false`, no call; `tocGo(null, 0)` → `false`
-- [ ] K2.2 Implement; `Marked.toc` set behind `typeof Marked !== "undefined"`, reading `document.getElementById("content")` at call time
-- [ ] K2.3 `node --test 'Tests/js/*.test.mjs'` green
+- [x] K2.2 Implement; `Marked.toc` set behind `typeof Marked !== "undefined"`, reading `document.getElementById("content")` at call time
+- [x] K2.3 `node --test 'Tests/js/*.test.mjs'` green
 
 ### K3 — app (builder)
 
-- [ ] K3.1 `TOCController.update` sets `entries`. `TOCSidebar`: empty → `Text("No headings").foregroundStyle(.secondary)`, centered; else `List { ForEach(Array(entries.enumerated()), id: \.offset) { i, e in Button { toc.go(i) } label: { … } } }` per "Click rule" + "Row look"; `.navigationSplitViewColumnWidth` per "Row look"
-- [ ] K3.2 Coordinator: `weak var tocController`; in `start`, `toc.go = { [weak web] i in Task { _ = try? await web?.callAsyncJavaScript("return Marked.toc.go(i)", arguments: ["i": i], in: nil, contentWorld: .defaultClient) } }`; `refreshTOC()`: bump counter, `callAsyncJavaScript("return Marked.toc.headings()", …)`, drop if stale, `toc.update(try TOC.parse(raw))`; on error `NSLog("Marked toc failed: …")` + `update([])`. `queue.onRendered` calls both `find?.renderDidComplete()` and `self?.refreshTOC()`. No change to the ready gate, `decidePolicyFor`, or the terminate path
-- [ ] K3.3 `ReaderView`: sidebar = `TOCSidebar(toc:)`; detail = today's `WebView` + `safeAreaInset` + `navigationSubtitle`, unchanged
-- [ ] K3.4 `make app` builds, no warnings; `make test` green
+- [x] K3.1 `TOCController.update` sets `entries`. `TOCSidebar`: empty → `Text("No headings").foregroundStyle(.secondary)`, centered; else `List { ForEach(Array(entries.enumerated()), id: \.offset) { i, e in Button { toc.go(i) } label: { … } } }` per "Click rule" + "Row look"; `.navigationSplitViewColumnWidth` per "Row look"
+- [x] K3.2 Coordinator: `weak var tocController`; in `start`, `toc.go = { [weak web] i in Task { _ = try? await web?.callAsyncJavaScript("return Marked.toc.go(i)", arguments: ["i": i], in: nil, contentWorld: .defaultClient) } }`; `refreshTOC()`: bump counter, `callAsyncJavaScript("return Marked.toc.headings()", …)`, drop if stale, `toc.update(try TOC.parse(raw))`; on error `NSLog("Marked toc failed: …")` + `update([])`. `queue.onRendered` calls both `find?.renderDidComplete()` and `self?.refreshTOC()`. No change to the ready gate, `decidePolicyFor`, or the terminate path
+- [x] K3.3 `ReaderView`: sidebar = `TOCSidebar(toc:)`; detail = today's `WebView` + `safeAreaInset` + `navigationSubtitle`, unchanged
+- [x] K3.4 `make app` builds, no warnings; `make test` green
 
 ### I10 — integrate + live check (sequential, main loop)
 
-- [ ] I10.1 Merge K1–K3; `make test`; `make install`
-- [ ] I10.2 Fixture `toc dir/a.md` (space in path): frontmatter; `# Title`; `## Intro`; `## Intro`; `### *Em* and \`code\``;`#### H4`;`##### H5`;`###### H6`; raw`<h2 id="custom">Raw</h2>`; raw`<h3></h3>`; a fenced block containing`# not a heading`; a Mermaid block; 60 filler paragraphs between headings. Temporary env-guarded harness (not committed), reads`TOCController.entries` and calls `go(i)` (the `Button` action path):
+- [x] I10.1 Merge K1–K3; `make test`; `make install` (skipped: parallel slices share `~/Applications`; live check ran `build/Marked.app`)
+- [x] I10.2 Fixture `toc dir/a.md` (space in path): frontmatter; `# Title`; `## Intro`; `## Intro`; `### *Em* and \`code\``;`#### H4`;`##### H5`;`###### H6`; raw`<h2 id="custom">Raw</h2>`; raw`<h3></h3>`; a fenced block containing`# not a heading`; a Mermaid block; 60 filler paragraphs between headings. Temporary env-guarded harness (not committed), reads`TOCController.entries` and calls `go(i)` (the `Button` action path):
   - entries = `Title, Intro, Intro, Em and code, H4, H5, H6, Raw, —` with depths `0,1,1,2,3,4,5,1,2`; no entry for the fence or frontmatter
   - Instant scroll: harness `await`s `callAsyncJavaScript("const ok = Marked.toc.go(3); return [ok, document.getElementById('content').querySelectorAll('h1, h2, h3, h4, h5, h6')[3].getBoundingClientRect().top]")` → `[true, ≈ 0 ± 2 px]` (same JS turn = no animation); page `Marked.token` unchanged (no reload)
   - Button path: `TOCController.go(3)` (schedules a `Task`) → harness polls the heading's `top` every 50 ms, ≤ 1 s → ≈ 0 ± 2 px; `go(99)` → `false`, no scroll, no crash
@@ -121,8 +122,8 @@ struct TOCSidebar: View { @ObservedObject var toc: TOCController }   // stub: Te
   - live scroll with the sidebar open: scroll to top, edit a filler paragraph below `##### H5` (offscreen) → that block's `data-sourcepos` element is in the viewport (centered, ± 1 line) and `el.getAnimations().length > 0` (flash), and TOC entries are unchanged
   - with the sidebar open: `WebView.findController(in: keyWindow)` non-nil; find `Intro` → `1 of 2`; error banner (rename the file away) still shows above the web view
   - ≥ 2 s between launches; `--args -ApplePersistenceIgnoreState YES`; pick window by `webView.url?.path`
-- [ ] I10.3 Manual (person at the keyboard): click rows with the mouse → scrolls; Ctrl-Cmd-S from the keyboard; drag the sidebar edge; title-bar sidebar button toggles all windows
-- [ ] I10.4 code-reviewer loop until clean (max 5) → `design/s10-review.md`; tick S10 in `design.md`; commit on `s10-toc`
+- [ ] I10.3 (open: needs a person) Manual (person at the keyboard): click rows with the mouse → scrolls; Ctrl-Cmd-S from the keyboard; drag the sidebar edge; title-bar sidebar button toggles all windows
+- [x] I10.4 code-reviewer loop until clean (max 5) → `design/s10-review.md`; tick S10 in `design.md`; commit on `s10-toc`
 
 ## Merge conflicts
 

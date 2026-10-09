@@ -41,6 +41,7 @@ struct MarkedApp: App {
         }
         .commands {
             FindCommands()
+            SidebarCommands()
             CommandGroup(replacing: .printItem) {
                 Button("Print…") { WebView.webView(in: NSApp.keyWindow)?.printAsSheet() }.keyboardShortcut("p")
             }
