@@ -54,8 +54,10 @@ struct WebView: NSViewRepresentable {
 
         func stop() { watcher?.stop() }
 
+        /// Follows symlinks: the handler serves the target, so the stamp must change when the target does.
         nonisolated static func mtime(_ path: String) -> Double? {
-            (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate] as? Date)?.timeIntervalSince1970
+            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+            return (try? FileManager.default.attributesOfItem(atPath: resolved)[.modificationDate] as? Date)?.timeIntervalSince1970
         }
 
         func start(_ web: WKWebView, fileURL: URL?) {

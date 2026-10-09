@@ -87,4 +87,10 @@ import Testing
         #expect(DocURL.contentType(forPath: "/x/a.png") == "image/png")
         #expect(DocURL.contentType(forPath: "/x/a.JPG") == "image/jpeg")
     }
+
+    @Test func serveExtensionFromFileNameOnly() {
+        let probe: (String) -> FileInfo? = { FileInfo(resolvedPath: $0, isRegularFile: true) }
+        #expect(DocURL.imageFile(for: .init(string: "marked://doc/tmp/v1.png/noext")!, probe: probe) == nil)
+        #expect(DocURL.imageFile(for: .init(string: "marked://doc/tmp/a.b/c.PNG")!, probe: probe) == "/tmp/a.b/c.PNG")
+    }
 }

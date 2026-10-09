@@ -36,7 +36,7 @@ public enum DocURL {
 
     public static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico", "svg"]
 
-    /// Resolved path to serve for a `marked://doc/...` request, or nil → 403. W7 stub.
+    /// Resolved path to serve for a `marked://doc/...` request, or nil → 403.
     public static func imageFile(for url: URL, probe: (String) -> FileInfo?) -> String? {
         guard let path = filePath(from: url), !path.hasSuffix("/" + shellName),
               isImage(path), let info = probe(path), info.isRegularFile, isImage(info.resolvedPath)
@@ -44,14 +44,16 @@ public enum DocURL {
         return info.resolvedPath
     }
 
-    private static func isImage(_ path: String) -> Bool {
-        imageExtensions.contains(path.split(separator: ".").last.map { $0.lowercased() } ?? "")
+    private static func ext(_ path: String) -> String {
+        (path as NSString).pathExtension.lowercased()
     }
 
-    /// W7 stub.
+    private static func isImage(_ path: String) -> Bool {
+        imageExtensions.contains(ext(path))
+    }
+
     public static func contentType(forPath path: String) -> String {
-        let ext = path.split(separator: ".").last.map { $0.lowercased() } ?? ""
-        return UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
+        UTType(filenameExtension: ext(path))?.preferredMIMEType ?? "application/octet-stream"
     }
 }
 

@@ -122,7 +122,7 @@ public enum ImageStamp {
 
 - [x] I7.1 Merge T1, T2 **and T3** (copy files from worktrees; T3 replaces the identity `ImageStamp.apply` stub and adds `ImageStampTests`); `make test` (confirm `ImageStampTests` ran); `make install`
 - [x] I7.2 (2026-10-09: rel 10px, up 12px, svg 16px, abs 14px load; txt, symlink, missing = 0; swap → rel 30px with new `v`, others keep their `v`) Fixture `~/tmp/marked fixtures/img dir/doc.md` (spaced path) with `img.png` beside it, `../up.png`, `sub/a b.svg`, an absolute-path image, `notes.txt` linked as an image, a symlink `evil.png` → a text file, and a missing image. Temporary env-guarded harness (not committed) reads each `<img>`'s `naturalWidth` after load: the four real images > 0; the `.txt`, symlink, and missing ones = 0. Cache-busting: replace `img.png` with a different-size image, append a line to `doc.md` → after the render, `img.png`'s `naturalWidth` matches the new image and its `src` carries a new `v`
-- [ ] I7.3 code-reviewer loop until clean (max 5); commit on `s7-images`; tick S7 in `design.md`
+- [x] I7.3 code-reviewer loop (clean at round 2, see `s7-review.md`) until clean (max 5); commit on `s7-images`; tick S7 in `design.md`
 
 ## Merge conflicts
 
