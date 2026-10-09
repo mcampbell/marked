@@ -76,7 +76,7 @@ Sliced design: 9 slices. S0 first. S1–S8 run as parallel streams after S0, one
 | # | Slice | Delivers (usable alone on top of S0) | Touches |
 |---|---|---|---|
 | S0 ✅ | Walking skeleton | Open `.md` → rendered page (GFM, sans). Owns first-open lifecycle: `FileWatcher.read()`, shell-ready gate, render dispatch (see Render lifecycle). `.app` bundle. `make test` green. JS bridge + hook registry. `marked:` scheme handler: shell + `base.css` only. Shell CSP. `DocURL` encoding. Spikes: (a) `WKUserScript` + `callAsyncJavaScript` run in `.defaultClient` with page JS off, (c) signed `.app` launches from Finder and loads `shell.html` from `Contents/Resources`, (d) doc in a spaced path renders; `#frag` link reaches `decidePolicyFor` (`linkActivated`) and `.allow` yields a same-document scroll: no reload, `Marked` global and find state survive | all base files |
-| S7 | Local images | Relative images (`img.png`, `../x.png`) load. Serve rule (symlinks resolved, regular file, image ext only), `Content-Type` via `UTType`. Check: fixture dir with a spaced path, both images load; non-image path → 403 | `SchemeHandler` (doc-file route), `DocURL` (serve rule + MIME, tests) |
+| S7 | Local images | Relative images (`img.png`, `../x.png`) load. Serve rule (symlinks resolved, regular file, image ext only), `Content-Type` via `UTType`. Cache-busting: `ImageStamp` appends `?v=<mtime>` to local `<img src>` at render time, so an edited image shows on the next render. Check: fixture dir with a spaced path, both images load; non-image path → 403 | `SchemeHandler` (doc-file route), `DocURL` (serve rule + MIME, tests) |
 | S1 ✅ | Live reload + scroll | Save in editor → view updates ≤1s, scrolls to first changed block, flashes it. Missing/unreadable/non-UTF-8 → banner | `FileWatcher` (adds poll to S0's `read()`), `LineDiff`, `js/scroll.js`, `ReaderView` (sets S0 dispatch's `changedLine` seam to `LineDiff.firstChangedLine`) |
 | S2 | Styles | Cmd-1/2/3 swap mono/serif/sans, all windows, persisted | `Style`, `styles/*.css`, `MarkedApp.commands`, `WebView` |
 | S3 | Find | Cmd-F / Ctrl-F bar, highlight all, "n of m", Enter/Cmd-G next, Shift-Cmd-G prev, Esc close. Re-apply after render (hook) | `FindBar`, `js/find.js`, `MarkedApp.commands`, `ReaderView`, `WebView` (find bridge: query/next/prev → match index + count) |
@@ -128,7 +128,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 - C1 `MarkedApp.commands`: S2 + S3 both add menu items
 - C2 `WebView.userScripts` list: S1, S3, S5, S6, S8 each append a line
-- C3 `WebView` coordinator: S2 style injection, S3 find bridge, S6 extends S0's `decidePolicyFor` (S1 no longer touches it: render dispatch is S0)
+- C3 `WebView` coordinator: S2 style injection, S3 find bridge, S6 extends S0's `decidePolicyFor`, S7 render closure (one line) (S1 no longer touches it: render dispatch is S0)
 - C4 `ReaderView`: S1 adds banner, S3 adds find bar
 
 ## Rework (named, accepted)
@@ -143,6 +143,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 ## Deferred (not in any slice)
 
+- Image-only edits (image changes, `.md` unchanged) are not detected; single-quoted raw-HTML `src` and `srcset` are not cache-busted (S7)
 - Bare-CR (classic Mac) line endings: `LineDiff` splits on LF only, so live scroll lands on line 1 for CR-only files (S1 review m2)
 - Syntax highlight in code blocks, dark mode, TOC, print/export, TOML `+++`, large-file perf
 
