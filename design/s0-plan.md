@@ -48,12 +48,12 @@ Critical path: W0 → join(P1–P5) → I. The slowest stream sets the join. Ass
 
 ### W0 — scaffold + stubs (sequential, main loop)
 
-- [ ] W0.1 `Package.swift`: tools 6.0, `.macOS(.v14)`. Targets `MarkedCore` (lib; deps `cmark-gfm` + `cmark-gfm-extensions` from `swiftlang/swift-cmark` `.revision("0c8947bbd58c491c54aae114aca40621cddc8357")`), `Marked` (executable → `MarkedCore`), `MarkedCoreTests`. No `resources:`
-- [ ] W0.2 Confirm C module names (`cmark_gfm`, `cmark_gfm_extensions`) by importing them in the `HTMLRenderer` stub; `swift build`
-- [ ] W0.3 `Makefile`: `build`; `test` with `-Xswiftc -F $(CLT_FW) -Xlinker -F -Xlinker $(CLT_FW) -Xlinker -rpath -Xlinker $(CLT_FW)` (`CLT_FW=/Library/Developer/CommandLineTools/Library/Developer/Frameworks`); `app` (assembles `build/Marked.app`: binary → `Contents/MacOS`, `Resources/` → `Contents/Resources`, `Scripts/Info.plist`, `codesign --force -s -`); `run` (`app` + `open build/Marked.app`); `install` (`app` → `ditto` to `~/Applications/Marked.app` → `lsregister -f ~/Applications/Marked.app` so Finder Open With lists it); `clean`. No target uses `sudo`; `make` fails rather than prompt
-- [ ] W0.4 `Scripts/Info.plist`: `CFBundleExecutable Marked`, `CFBundleIdentifier com.example.Marked`, `CFBundlePackageType APPL`, `LSMinimumSystemVersion 14.0`; `UTImportedTypeDeclarations` `net.daringfireball.markdown` (conforms `public.plain-text`; exts `md markdown mdown`); `CFBundleDocumentTypes` role `Viewer`, `LSItemContentTypes [net.daringfireball.markdown]`, `LSHandlerRank Alternate`
-- [ ] W0.5 `Resources/shell.html` final: CSP meta exactly as `design.md` Security; `<link rel="stylesheet" href="marked://app/base.css">`; `<style id="style"></style>`; `<div id="content"></div>`
-- [ ] W0.6 Stubs with final signatures and placeholder bodies, all compiling: `render` → `"<p>stub</p>"`; `shellURL` → `marked://doc/__marked__.html`; `appURL` → `marked://app/<name>`; `filePath` → `nil`; `read` → `.success("stub")`; `RenderQueue.submit`/`markReady`/`shellWillReload` → no-op. Signatures:
+- [x] W0.1 `Package.swift`: tools 6.0, `.macOS(.v14)`. Targets `MarkedCore` (lib; deps `cmark-gfm` + `cmark-gfm-extensions` from `swiftlang/swift-cmark` `.revision("0c8947bbd58c491c54aae114aca40621cddc8357")`), `Marked` (executable → `MarkedCore`), `MarkedCoreTests`. No `resources:`
+- [x] W0.2 Confirm C module names (`cmark_gfm`, `cmark_gfm_extensions`) by importing them in the `HTMLRenderer` stub; `swift build`
+- [x] W0.3 `Makefile`: `build`; `test` with `-Xswiftc -F $(CLT_FW) -Xlinker -F -Xlinker $(CLT_FW) -Xlinker -rpath -Xlinker $(CLT_FW)` (`CLT_FW=/Library/Developer/CommandLineTools/Library/Developer/Frameworks`); `app` (assembles `build/Marked.app`: binary → `Contents/MacOS`, `Resources/` → `Contents/Resources`, `Scripts/Info.plist`, `codesign --force -s -`); `run` (`app` + `open build/Marked.app`); `install` (`app` → `ditto` to `~/Applications/Marked.app` → `lsregister -f ~/Applications/Marked.app` so Finder Open With lists it); `clean`. No target uses `sudo`; `make` fails rather than prompt
+- [x] W0.4 `Scripts/Info.plist`: `CFBundleExecutable Marked`, `CFBundleIdentifier com.example.Marked`, `CFBundlePackageType APPL`, `LSMinimumSystemVersion 14.0`; `UTImportedTypeDeclarations` `net.daringfireball.markdown` (conforms `public.plain-text`; exts `md markdown mdown`); `CFBundleDocumentTypes` role `Viewer`, `LSItemContentTypes [net.daringfireball.markdown]`, `LSHandlerRank Alternate`
+- [x] W0.5 `Resources/shell.html` final: CSP meta exactly as `design.md` Security; `<link rel="stylesheet" href="marked://app/base.css">`; `<style id="style"></style>`; `<div id="content"></div>`
+- [x] W0.6 Stubs with final signatures and placeholder bodies, all compiling: `render` → `"<p>stub</p>"`; `shellURL` → `marked://doc/__marked__.html`; `appURL` → `marked://app/<name>`; `filePath` → `nil`; `read` → `.success("stub")`; `RenderQueue.submit`/`markReady`/`shellWillReload` → no-op. Signatures:
   - `HTMLRenderer.render(_ source: String) -> String`
   - `DocURL.shellURL(forDocument: URL) -> URL`, `DocURL.appURL(_ name: String) -> URL`, `DocURL.filePath(from: URL) -> String?`
   - `struct RenderResult: Sendable { let ok: Bool; let errors: [String] }`
@@ -62,7 +62,7 @@ Critical path: W0 → join(P1–P5) → I. The slowest stream sets the join. Ass
   - `enum ReadError: Error { case unreadable(String), notUTF8 }`, `FileWatcher.read(_ url: URL) -> Result<String, ReadError>`
   - App types: `MarkedApp`, `MarkdownDocument`, `ReaderView`, `WebView`, `SchemeHandler` (empty bodies that compile)
   - `Resources/marked.js` stub: `window.Marked = { ping: () => "pong", token: crypto.randomUUID() }` + wire-shape comment; `Resources/base.css` empty
-- [ ] W0.7 `swift build` + `make test` (zero tests) green → commit → fork worktrees
+- [x] W0.7 `swift build` + `make test` (zero tests) green → commit → fork worktrees
 
 ### P1 — app shell + WebKit + gate (builder)
 
