@@ -19,6 +19,7 @@ struct WebView: NSViewRepresentable {
         c.setBanner = { [banner = $banner] in banner.wrappedValue = $0 }
         let cfg = WKWebViewConfiguration()
         cfg.defaultWebpagePreferences.allowsContentJavaScript = false
+        cfg.preferences.shouldPrintBackgrounds = true
         cfg.setURLSchemeHandler(SchemeHandler(), forURLScheme: DocURL.scheme)
         // Later slices append their scripts here.
         let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js"),
@@ -45,13 +46,18 @@ struct WebView: NSViewRepresentable {
         coordinator.stop()
     }
 
-    /// The find controller of the document shown in `window`, if any.
-    @MainActor static func findController(in window: NSWindow?) -> FindController? {
+    /// The web view of the document shown in `window`, if any.
+    @MainActor static func webView(in window: NSWindow?) -> WKWebView? {
         func web(in v: NSView) -> WKWebView? {
             if let w = v as? WKWebView { return w }
             return v.subviews.lazy.compactMap(web).first
         }
-        return window?.contentView.flatMap(web).flatMap { ($0.navigationDelegate as? Coordinator)?.findController }
+        return window?.contentView.flatMap(web)
+    }
+
+    /// The find controller of the document shown in `window`, if any.
+    @MainActor static func findController(in window: NSWindow?) -> FindController? {
+        (webView(in: window)?.navigationDelegate as? Coordinator)?.findController
     }
 
     static func resource(_ name: String, _ ext: String, subdirectory: String? = nil) -> String {
@@ -204,5 +210,21 @@ struct WebView: NSViewRepresentable {
             decisionHandler(a == .allow ? .allow : .cancel)
             if a != .allow && a != .cancel { performLink(a) }
         }
+    }
+}
+
+extension WKWebView {
+    /// One place for print settings, so the Print command and a live check print the same way.
+    func makePrintOperation() -> NSPrintOperation {
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        info.dictionary()[NSPrintInfo.AttributeKey.headerAndFooter] = false
+        info.isVerticallyCentered = false
+        return printOperation(with: info)
+    }
+
+    /// Print panel as a sheet on this view's window; no window → no-op.
+    func printAsSheet() {
+        guard let window else { return }
+        makePrintOperation().runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
     }
 }

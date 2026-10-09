@@ -13,3 +13,10 @@ pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #ee
 .find-current { background: #ff9632 }
 div.mermaid { text-align: center; margin: 1em 0 }
 .mermaid-error { color: #c00; font: .85em/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; margin: -.5em 0 1em }
+@media print {
+  #content { max-width: none; padding: 0 }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere }
+  pre, div.mermaid, tr, img { break-inside: avoid }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid }
+  ::highlight(find-hit), ::highlight(find-current) { background: transparent }
+}

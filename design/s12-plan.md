@@ -66,30 +66,30 @@ func print()                                     // makePrintOperation + runModa
 
 ### P1 — spikes (gate, main loop)
 
-- [ ] P1.1 Branch `s12-print` off `main`. Implement the frozen contracts (helper extract, `web` ref, `makePrintOperation`, `print`, `shouldPrintBackgrounds`, command). `make test` green, `make app` no warnings
-- [ ] P1.2 Temporary env-guarded `Sources/Marked/Harness.swift` + one line in `AppDelegate.applicationDidFinishLaunching` (never committed; `git checkout` after). Harness, after first render: `let op = coordinator.makePrintOperation()`; `op.printInfo.jobDisposition = .save`; `op.printInfo.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = <scratch>/out.pdf`; `op.showsPrintPanel = false`; `op.showsProgressPanel = false`; `op.runModal(for: window, …)`; wait for the file; log `PDF written`
-- [ ] P1.3 p1 not blank + paginates: harness PDF of a 3+ screen fixture has `pageCount > 1` and its text contains the first and last heading (PDFKit script, see P3.2). Retry without `op.view?.frame = web.bounds`: keep the line only if dropping it breaks p1
-- [ ] P1.4 p2 Save as PDF via the panel: harness launch 2 posts Cmd-P with `NSApp.postEvent` → log that a sheet is attached to the window (`window.attachedSheet != nil`), then `NSApp.endSheet` / cancel. The "PDF" button itself is a person step (P3.4)
-- [ ] P1.5 p3 mermaid prints: fixture flowchart → rasterized page shows the diagram (P3.3)
-- [ ] P1.6 p4 one Print item: harness logs every `NSApp.mainMenu` item titled `Print…` with `isEnabled` and key equivalent → exactly one, enabled, `p` + Cmd
-- [ ] Gate: any of p1/p3/p4 fails → stop, record facts in this file, return to the user. No pre-approved fallback (`createPDF` gives one tall page, not pagination)
+- [x] P1.1 Branch `s12-print` off `main`. Implement the frozen contracts (helper extract, `web` ref, `makePrintOperation`, `print`, `shouldPrintBackgrounds`, command). `make test` green, `make app` no warnings
+- [x] P1.2 Temporary env-guarded `Sources/Marked/Harness.swift` + one line in `AppDelegate.applicationDidFinishLaunching` (never committed; `git checkout` after). Harness, after first render: `let op = coordinator.makePrintOperation()`; `op.printInfo.jobDisposition = .save`; `op.printInfo.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = <scratch>/out.pdf`; `op.showsPrintPanel = false`; `op.showsProgressPanel = false`; `op.runModal(for: window, …)`; wait for the file; log `PDF written`
+- [x] P1.3 p1 not blank + paginates: harness PDF of a 3+ screen fixture has `pageCount > 1` and its text contains the first and last heading (PDFKit script, see P3.2). Retry without `op.view?.frame = web.bounds`: keep the line only if dropping it breaks p1
+- [x] P1.4 p2 Save as PDF via the panel: harness launch 2 posts Cmd-P with `NSApp.postEvent` → log that a sheet is attached to the window (`window.attachedSheet != nil`), then `NSApp.endSheet` / cancel. The "PDF" button itself is a person step (P3.4)
+- [x] P1.5 p3 mermaid prints: fixture flowchart → rasterized page shows the diagram (P3.3)
+- [x] P1.6 p4 one Print item: harness logs every `NSApp.mainMenu` item titled `Print…` with `isEnabled` and key equivalent → exactly one, enabled, `p` + Cmd
+- [x] Gate (passed): any of p1/p3/p4 fails → stop, record facts in this file, return to the user. No pre-approved fallback (`createPDF` gives one tall page, not pagination)
 
 ### P2 — print CSS (main loop)
 
-- [ ] P2.1 Append the frozen `@media print` block to `base.css`
+- [x] P2.1 Append the frozen `@media print` block to `base.css`
 
 ### P3 — live check (main loop)
 
-- [ ] P3.1 Fixture dir in the scratchpad (path with a space): `p.md` with frontmatter, `h1`, 3 `h2`s each followed by 40 filler lines, a fence with one unbroken 300-char token (`X` × 300) directly followed by `ENDOFLINE`, an 80-row table, a mermaid flowchart, `==marked==` text, an image `img.png`. Harness opens the find bar with query `filler` before printing
-- [ ] P3.2 PDF text check, `swift` script (scratchpad, not committed): `import PDFKit`; print `pageCount`; print whether `string` contains first heading, last heading, `ENDOFLINE` (text present; wrap is proven in P3.3, not here), `marked`; print whether it contains `p.md` or a date string (header/footer must be absent). Expect `pageCount ≥ 3`, all true, header/footer false
-- [ ] P3.3 Visual check: `sips -s format png out.pdf --out page1.png` (page 1) and a per-page split if needed (`PDFDocument.page(at:)` → `NSImage` → PNG in the same script). Main loop reads the PNGs: full-width text, the `X…ENDOFLINE` token wrapped onto several lines with `ENDOFLINE` fully inside the printed area (not clipped, not scaled down), `pre` gray background, `mark` yellow, no find-hit color on `filler`, mermaid drawn, no table row split, no heading alone at a page bottom, no header/footer
-- [ ] P3.4 Manual (person at the keyboard): Cmd-P → panel sheet → PDF ▸ Save as PDF → open in Preview; matches P3.3. Cmd-P with no window (all closed, app still running if Open dialog shown) → nothing
-- [ ] P3.5 Remove harness (`git checkout Sources/Marked/AppDelegate.swift`, delete `Harness.swift`); `make test`; `make install`
+- [x] P3.1 Fixture dir in the scratchpad (path with a space): `p.md` with frontmatter, `h1`, 3 `h2`s each followed by 40 filler lines, a fence with one unbroken 300-char token (`X` × 300) directly followed by `ENDOFLINE`, an 80-row table, a mermaid flowchart, `==marked==` text, an image `img.png`. Harness opens the find bar with query `filler` before printing
+- [x] P3.2 PDF text check, `swift` script (scratchpad, not committed): `import PDFKit`; print `pageCount`; print whether `string` contains first heading, last heading, `ENDOFLINE` (text present; wrap is proven in P3.3, not here), `marked`; print whether it contains `p.md` or a date string (header/footer must be absent). Expect `pageCount ≥ 3`, all true, header/footer false
+- [x] P3.3 Visual check: `sips -s format png out.pdf --out page1.png` (page 1) and a per-page split if needed (`PDFDocument.page(at:)` → `NSImage` → PNG in the same script). Main loop reads the PNGs: full-width text, the `X…ENDOFLINE` token wrapped onto several lines with `ENDOFLINE` fully inside the printed area (not clipped, not scaled down), `pre` gray background, `mark` yellow, no find-hit color on `filler`, mermaid drawn, no table row split, no heading alone at a page bottom, no header/footer
+- [ ] P3.4 (open, person at the keyboard) Manual (person at the keyboard): Cmd-P → panel sheet → PDF ▸ Save as PDF → open in Preview; matches P3.3. Cmd-P with no window (all closed, app still running if Open dialog shown) → nothing
+- [x] P3.5 (harness removed, `make test` green; `make install` left to the main loop after merge) Remove harness (`git checkout Sources/Marked/AppDelegate.swift`, delete `Harness.swift`); `make test`; `make install`
 
 ### P4 — review + commit
 
-- [ ] P4.1 code-reviewer loop (+ `mc-code-security`: no new load path, print reads only the rendered DOM) until clean (max 5) → `design/s12-review.md`
-- [ ] P4.2 Tick S12 in `design.md`; commit on `s12-print`
+- [x] P4.1 code-reviewer loop (+ `mc-code-security`: no new load path, print reads only the rendered DOM) until clean (max 5) → `design/s12-review.md`
+- [x] P4.2 Tick S12 in `design.md`; commit on `s12-print`
 
 ## R3 (second of S11/S12 to land)
 
@@ -111,3 +111,7 @@ Whoever lands second reruns P3.2–P3.3 with a fixture fence ` ```swift ` → ra
 None. Resolved 2026-10-09 (author, D46):
 1. ~~`headerAndFooter` wording?~~ design.md now names the `NSPrintHeaderAndFooter` dictionary key (SDK: `NSPrintInfo.h:77`)
 2. ~~Cmd-P with no document window?~~ Enabled, no-op (as designed)
+
+## Results (2026-10-09)
+
+See `s12-review.md`. Deviations: `op.view?.frame` line dropped (p1 identical without it); print moved off the coordinator to `WebView.webView(in:)` + `WKWebView.makePrintOperation()`/`printAsSheet()` (review Minor); dead `.find-*` print rule dropped.
