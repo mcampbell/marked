@@ -75,7 +75,7 @@ public enum FrontmatterSplit {
   - only the first closing fence counts: `"---\na\n---\nb\n---"` → endLine 3
   - multi-line, `<`/`&` in text → returned unescaped (escaping is F2's job)
   - body line count always equals source line count
-- [ ] F1.2 Implement: strip one leading BOM; split on `"\n"` keeping empties; trim one trailing `"\r"` per line for comparison only; find the closing fence; build `text` from original lines 1…endLine (minus their `\r`, BOM dropped); `body` = `endLine` empty lines + the remaining original lines, joined with `"\n"`
+- [ ] F1.2 Implement: strip one leading BOM; split the **UTF-8 bytes** on LF keeping empties, as `LineDiff` does (`source.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)`, then `String(decoding:as: UTF8.self)` per line; LF never occurs inside a multi-byte character). Never split `String` on `"\n"`: Swift treats CRLF as one `Character`, so the CRLF fixture would become one line and frontmatter would go undetected (reproduced in review, 2026-10-09); trim one trailing `"\r"` per line for comparison only; find the closing fence; build `text` from original lines 1…endLine (minus their `\r`, BOM dropped); `body` = `endLine` empty lines + the remaining original lines, joined with `"\n"`
 
 ### F2 — renderer integration (builder)
 
@@ -86,6 +86,7 @@ public enum FrontmatterSplit {
   - unclosed → no `class="frontmatter"`, an `<hr` present
   - empty block → `<pre class="frontmatter" data-sourcepos="1:1-2:3"><code>---\n---</code></pre>`, body still at correct lines
   - `---` on line 3 of a plain document → no frontmatter block (normal markdown)
+  - CRLF regression: `"---\r\ntitle: x\r\n---\r\n# H\r\n"` → frontmatter block present with `<code>---\ntitle: x\n---</code>`, and `# H` keeps `data-sourcepos="4:1-4:3"`
   - existing tests stay green (incl. the `==` code tests)
 - [ ] F2.2 Implement: `FrontmatterSplit.split(source)`; render `body` (or `source` when nil) with the existing cmark code; prepend the block whenever `split` returns one. A small private `escape(_:)` for `& < > "`
 
