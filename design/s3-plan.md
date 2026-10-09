@@ -1,6 +1,6 @@
 # S3 implementation plan — find (parallel)
 
-Source: `design.md` (S3 row, "Find skips mermaid", "Find must match across inline element boundaries", soft breaks), `grill.md` Q6, D30. Size: 2 pts (`estimates.md`). Builds on `s2-styles` @ `960d000`.
+Source: `design.md` (S3 row, "Find skips mermaid", "Find must match across inline element boundaries", soft breaks), `grill.md` Q6, D30. Size: 2 pts (`estimates.md`). Builds on `s9-windows` (S2 + S9).
 
 Done = Cmd-F or Ctrl-F opens a find bar in the current window; typing highlights every match and shows "n of m"; Enter / Cmd-G go to the next match, Shift-Enter / Shift-Cmd-G to the previous, wrapping at the ends, with the current match scrolled into view; Esc closes the bar and clears the highlights; a live reload keeps the highlights and updates the count; a shell reload (web process crash) restores the search; matches work across bold/italic/link boundaries and across wrapped lines; a find failure shows "Find failed", never a false "No results"; `make test` green; live check passes.
 
@@ -100,7 +100,7 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 
 ### W3 — stubs, CSS, spike (sequential, main loop)
 
-- [ ] W3.1 Branch `s3-find` from `s2-styles`
+- [ ] W3.1 Branch `s3-find` from `s9-windows`
 - [ ] W3.2 Stubs per "Frozen contracts", every public member present so K3 and K4 build without K2: Swift compiles (`FindSession()` init, mutable `send`, `view` = `.hidden`, methods no-ops, `onChange` default no-op; `FindView.init` and `.hidden`); JS returns `{count: 0, index: -1}` from every method; append `resource("find", "js", subdirectory: "js")` to `userScripts`
 - [ ] W3.3 `base.css` (before the spike, so the paint check has a colour to find): `::highlight(find-hit) { background: #ffe58a } ::highlight(find-current) { background: #ff9632 }` and the fallback equivalents `.find-hit { background: #ffe58a } .find-current { background: #ff9632 }` (keep both; the unused pair costs nothing)
 - [ ] W3.4 Spike in the running app (temporary harness, not committed), from the `.defaultClient` world, after W3.3's CSS is in the bundle: pick a range over a run of several words in a plain paragraph; take a `WKWebView.takeSnapshot` of its rect **before** highlighting; register `find-hit` on the range; wait for paint (two `requestAnimationFrame`s, then ~100 ms); snapshot the same rect again. Pass when (a) `CSS.highlights.has("find-hit")`, (b) `#content.innerHTML` unchanged, and (c) in the "after" image ≥ 30% of pixels are within a small tolerance of `#ffe58a`, while in the "before" image < 2% are (counting a region, not one pixel, so glyph pixels cannot cause a false fail). All pass → Highlight API; any fails → span fallback. Record the result and the backend here
