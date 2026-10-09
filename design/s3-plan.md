@@ -22,7 +22,7 @@ Critical path: W3 → join(K1–K4) → I3. Expected longest: K1 or K2.
 - **One state machine, in MarkedCore.** `FindSession` (like `RenderQueue`: `@MainActor`, injected async `send`, fully unit-tested) owns visibility, the desired query and saved match index, content readiness, request ordering, restore after a shell reload, and errors. The app's `FindController` is a thin `ObservableObject` that forwards UI intents to the session and republishes `session.onChange` for SwiftUI. The bridge (K4) only wires `send` and calls `shellWillReload` / `renderDidComplete`; it never sets status itself (review item 1)
 - **Ordering (latest wins).** Every request to JS carries a session `revision` (incremented on each new request). A result is applied only if its revision is still the latest; older results are dropped. `close()` bumps the revision, so a late `.set` result cannot repaint a closed bar's label. The view's debounce `Task` is cancelled in `hide()`, and `FindSession.type(_:)` is ignored while not visible, so a debounced query cannot reach JS after Esc (review item 2). Requests are not queued: JS calls are cheap and the revision rule makes order irrelevant for the label; JS itself applies `set`/`step`/`clear` in call order
 - **Readiness and shell reload.** The session is "ready" only once **content has rendered**, not when the shell loads: `markReady` only schedules the style and the first render (`RenderQueue` sends the style first), so `#content` can still be empty then. Until the first `renderDidComplete()`, the session sends nothing and keeps the desired query and the saved match index. The first `renderDidComplete()` after start or after `shellWillReload()` sends `.restore(query, savedIndex)` (if the bar is open with a query) — re-highlight against real content, no scroll, so S1's scroll-to-change is not overridden; later `renderDidComplete()` calls send `.state`. `shellWillReload()` clears "content ready", bumps the revision (old results void), and keeps the saved index. The session has no `markReady` (review items 3 and 3b)
-- **Errors.** `send` throws on a bridge failure or a decode miss. On a throw: keep the last good `status`, set `error` (label "Find failed"), log; never report it as zero matches. Errors clear on the next successful result. `renderDidComplete()` is fire-and-forget and non-throwing, called **after** the render result is decoded and returned to the queue — a failed state refresh can never turn a displayed render into a render failure (review item 4)
+- **Errors.** `send` throws on a bridge failure or a decode miss. On a throw: keep the last good `status`, set `error` (label "Find failed"), log; never report it as zero matches. Errors clear on the next successful result. `renderDidComplete()` is fire-and-forget and non-throwing. It is driven by a new `RenderQueue.onRendered` callback, which the queue fires only for a render success that passes its existing generation check, after updating its own state. So (a) a failed state refresh can never turn a displayed render into a render failure (review item 4), and (b) a render that started on the old shell and finishes after `shellWillReload()` is dropped by the queue and never marks the new, still-empty shell as content-ready
 - **Highlight backend.** Preferred: the **CSS Custom Highlight API** (`CSS.highlights`, `Highlight`, `Range`): no DOM change, no cleanup, ranges cross element boundaries natively. Fallback (only if the W3 spike fails): wrap each match segment in `<span class="find-hit">` (current: `find-hit find-current`), unwrap and `normalize()` before every re-apply and on `clear`. Both backends sit behind the same `Marked.find` API; W3 records which one K1 builds, and the I3 checks for that backend apply (review item 5)
 - **Matching.** Case-insensitive, Unicode-aware: escape the query, turn each whitespace run into `\s+`, `new RegExp(…, "giu")`; offsets index the original text. Non-overlapping, left to right. Empty query → no matches
 - **Text index.** Text nodes under `#content` in document order, skipping `div.mermaid`, `svg`, `script`, `style`, `.render-error`, and (fallback backend) existing `.find-hit` wrappers are unwrapped first. Joined into one string; where the nearest block ancestor changes, insert `\u0000` so a match never spans two blocks. Frontmatter is searchable (D30)
@@ -44,6 +44,9 @@ Critical path: W3 → join(K1–K4) → I3. Expected longest: K1 or K2.
 ```
 
 ```swift
+// MarkedCore/RenderQueue.swift (addition, W3; existing API unchanged)
+public var onRendered: () -> Void          // default no-op; current-generation render success only
+
 // MarkedCore/Find.swift
 public struct FindStatus: Equatable, Sendable {
     public let count: Int
@@ -90,7 +93,7 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 
 | File | Owner |
 |---|---|
-| Stubs for every contract above; `base.css` highlight rules (both backends); `userScripts` line for `find.js` | W3 (frozen after) |
+| Stubs for every contract above; `RenderQueue.onRendered` (implemented, with tests); `base.css` highlight rules (both backends); `userScripts` line for `find.js` | W3 (frozen after) |
 | `Resources/js/find.js` (bodies), `Tests/js/find.test.mjs` | K1 |
 | `Sources/MarkedCore/Find.swift` (bodies), `Tests/MarkedCoreTests/FindTests.swift` | K2 |
 | `Sources/Marked/{FindBar,FindController,MarkedApp,ReaderView}.swift` | K3 |
@@ -102,6 +105,7 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 
 - [ ] W3.1 Branch `s3-find` from `s9-windows`
 - [ ] W3.2 Stubs per "Frozen contracts", every public member present so K3 and K4 build without K2: Swift compiles (`FindSession()` init, mutable `send`, `view` = `.hidden`, methods no-ops, `onChange` default no-op; `FindView.init` and `.hidden`); JS returns `{count: 0, index: -1}` from every method; append `resource("find", "js", subdirectory: "js")` to `userScripts`
+- [ ] W3.2b `RenderQueue.onRendered`, test first (extend `RenderQueueTests` with its suspendable fakes): render A in flight → `shellWillReload()` → `markReady()` → resume A with success → `onRendered` **not** called; the new shell's render B completes → called once; a throwing render → not called; a render success on the current shell → called after `lastRendered` is updated. Implement: call `onRendered()` in the success branch after the generation guard
 - [ ] W3.3 `base.css` (before the spike, so the paint check has a colour to find): `::highlight(find-hit) { background: #ffe58a } ::highlight(find-current) { background: #ff9632 }` and the fallback equivalents `.find-hit { background: #ffe58a } .find-current { background: #ff9632 }` (keep both; the unused pair costs nothing)
 - [ ] W3.4 Spike in the running app (temporary harness, not committed), from the `.defaultClient` world, after W3.3's CSS is in the bundle: pick a range over a run of several words in a plain paragraph; take a `WKWebView.takeSnapshot` of its rect **before** highlighting; register `find-hit` on the range; wait for paint (two `requestAnimationFrame`s, then ~100 ms); snapshot the same rect again. Pass when (a) `CSS.highlights.has("find-hit")`, (b) `#content.innerHTML` unchanged, and (c) in the "after" image ≥ 30% of pixels are within a small tolerance of `#ffe58a`, while in the "before" image < 2% are (counting a region, not one pixel, so glyph pixels cannot cause a false fail). All pass → Highlight API; any fails → span fallback. Record the result and the backend here
 - [ ] W3.5 `make test` + `make app` green → commit → fork worktrees
@@ -140,7 +144,7 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 
 - [ ] K4.1 `WebView` takes the `FindSession`; the coordinator sets `session.send` to call the matching `Marked.find.*` via `callAsyncJavaScript(…, in: nil, contentWorld: .defaultClient)` and decode `{count, index}`; a decode miss **throws** (the session turns it into "Find failed")
 - [ ] K4.2 `webViewWebContentProcessDidTerminate` → `session.shellWillReload()` beside `queue.shellWillReload()`. No session call on `didFinish`: find waits for content (`renderDidComplete`)
-- [ ] K4.3 After a render result decodes successfully in the send closure, call `session.renderDidComplete()` (non-throwing; it starts its own task) before returning the result — the render closure's outcome must not depend on it
+- [ ] K4.3 `queue.onRendered = { [weak session] in session?.renderDidComplete() }`. Do **not** call it from inside the send closure: only the queue knows whether a completion belongs to the current shell
 - [ ] K4.4 `make app` builds; `make test` green
 
 ### I3 — integrate + live check (sequential, main loop)
