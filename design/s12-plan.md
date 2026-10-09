@@ -43,7 +43,7 @@ func print()                                     // makePrintOperation + runModa
 /* base.css, appended */
 @media print {
   #content { max-width: none; padding: 0 }
-  pre { white-space: pre-wrap }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere }
   pre, div.mermaid, tr, img { break-inside: avoid }
   h1, h2, h3, h4, h5, h6 { break-after: avoid }
   ::highlight(find-hit), ::highlight(find-current) { background: transparent }
@@ -80,9 +80,9 @@ func print()                                     // makePrintOperation + runModa
 
 ### P3 — live check (main loop)
 
-- [ ] P3.1 Fixture dir in the scratchpad (path with a space): `p.md` with frontmatter, `h1`, 3 `h2`s each followed by 40 filler lines, a fence with a 300-char line ending in `ENDOFLINE`, an 80-row table, a mermaid flowchart, `==marked==` text, an image `img.png`. Harness opens the find bar with query `filler` before printing
-- [ ] P3.2 PDF text check, `swift` script (scratchpad, not committed): `import PDFKit`; print `pageCount`; print whether `string` contains first heading, last heading, `ENDOFLINE` (wrap, not clipped), `marked`; print whether it contains `p.md` or a date string (header/footer must be absent). Expect `pageCount ≥ 3`, all true, header/footer false
-- [ ] P3.3 Visual check: `sips -s format png out.pdf --out page1.png` (page 1) and a per-page split if needed (`PDFDocument.page(at:)` → `NSImage` → PNG in the same script). Main loop reads the PNGs: full-width text, `pre` gray background, `mark` yellow, no find-hit color on `filler`, mermaid drawn, no table row split, no heading alone at a page bottom, no header/footer
+- [ ] P3.1 Fixture dir in the scratchpad (path with a space): `p.md` with frontmatter, `h1`, 3 `h2`s each followed by 40 filler lines, a fence with one unbroken 300-char token (`X` × 300) directly followed by `ENDOFLINE`, an 80-row table, a mermaid flowchart, `==marked==` text, an image `img.png`. Harness opens the find bar with query `filler` before printing
+- [ ] P3.2 PDF text check, `swift` script (scratchpad, not committed): `import PDFKit`; print `pageCount`; print whether `string` contains first heading, last heading, `ENDOFLINE` (text present; wrap is proven in P3.3, not here), `marked`; print whether it contains `p.md` or a date string (header/footer must be absent). Expect `pageCount ≥ 3`, all true, header/footer false
+- [ ] P3.3 Visual check: `sips -s format png out.pdf --out page1.png` (page 1) and a per-page split if needed (`PDFDocument.page(at:)` → `NSImage` → PNG in the same script). Main loop reads the PNGs: full-width text, the `X…ENDOFLINE` token wrapped onto several lines with `ENDOFLINE` fully inside the printed area (not clipped, not scaled down), `pre` gray background, `mark` yellow, no find-hit color on `filler`, mermaid drawn, no table row split, no heading alone at a page bottom, no header/footer
 - [ ] P3.4 Manual (person at the keyboard): Cmd-P → panel sheet → PDF ▸ Save as PDF → open in Preview; matches P3.3. Cmd-P with no window (all closed, app still running if Open dialog shown) → nothing
 - [ ] P3.5 Remove harness (`git checkout Sources/Marked/AppDelegate.swift`, delete `Harness.swift`); `make test`; `make install`
 

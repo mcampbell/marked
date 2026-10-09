@@ -76,7 +76,7 @@ pre code.hljs { background: none; padding: 0 }
 - [ ] K1.1 Node tests first (`Tests/js/syntax.test.mjs`, real vendored `hljs`):
   - `codeLangOf`: `"language-swift"` → `swift`; `"language-JS"` → `js`; `"foo language-ts bar"` → `ts`; `"language-a language-b"` → `a`; `""`, `"lang-x"`, `"xlanguage-y"` → `null`
   - `syntaxHTML`: `language-swift` `let x = 1` → contains `hljs-keyword`, and the HTML with tags stripped and entities decoded equals the input; alias `language-js` and `language-sh` → non-null; `language-mermaid` → `null`; `language-nosuchlang` → `null`; `""` → `null`
-  - injection: `language-html` `<script>alert(1)</script><img src=x onerror=1>` → output contains `&lt;script` and `&lt;img`, no `<script`, no `<img`; same text under `language-swift` (illegal input, `ignoreIllegals`) → escaped, no throw
+  - injection: `language-html` `<script>alert(1)</script><img src=x onerror=1>` → output has no `<script` and no `<img`; with `</?span[^>]*>` tags removed it has no `<` at all, and decoding entities gives back the input exactly (hljs splits `&lt;` from the tag name with a `hljs-name` span, so no `&lt;script` substring check); same text under `language-swift` (illegal input, `ignoreIllegals`) → escaped, no throw
 - [ ] K1.2 Implement `codeLangOf`, `syntaxHTML`
 - [ ] K1.3 DOM hook `colorCode` per "Own decisions"; register in `transform`; `ponytail:` cost comment
 - [ ] K1.4 `node --test 'Tests/js/*.test.mjs'` green

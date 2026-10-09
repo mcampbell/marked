@@ -161,7 +161,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 - `CommandGroup(replacing: .printItem)`: "Print…" Cmd-P → key window's coordinator `print()`. Lookup reuses the `WKWebView` walk in `findController(in:)` (extract it to one helper). No document window → no-op
 - `print()`: copy of `NSPrintInfo.shared`, `printInfo.dictionary()[NSPrintHeaderAndFooter] = false` (D44; no `headerAndFooter` property in the SDK), default margins → `web.printOperation(with:)` → `op.view?.frame = web.bounds` → `op.runModal(for: window, …)` (sheet). `cfg.preferences.shouldPrintBackgrounds = true`
 - Prints the DOM at click time. A render that lands while the panel is open: not handled (accepted)
-- `base.css` `@media print`: `#content { max-width: none; padding: 0 }`; `pre { white-space: pre-wrap }` (scroll overflow does not print); `pre, div.mermaid, tr, img { break-inside: avoid }`; `h1`–`h6 { break-after: avoid }`; find highlights (`::highlight(find-*)`, `.find-*`) transparent
+- `base.css` `@media print`: `#content { max-width: none; padding: 0 }`; `pre { white-space: pre-wrap; overflow-wrap: anywhere }` (scroll overflow does not print; `anywhere` breaks long unbroken tokens); `pre, div.mermaid, tr, img { break-inside: avoid }`; `h1`–`h6 { break-after: avoid }`; find highlights (`::highlight(find-*)`, `.find-*`) transparent
 - S12 spikes: (p1) pages are not blank and paginate; (p2) panel "Save as PDF" → multi-page PDF, selectable text; (p3) mermaid SVG prints; (p4) the replaced item is the only Print item and it is enabled
 - Check (manual, fixture: long code line, long table, mermaid, open find bar): print to PDF, read the PDF
 

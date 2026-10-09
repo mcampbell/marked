@@ -113,10 +113,12 @@ struct TOCSidebar: View { @ObservedObject var toc: TOCController }   // stub: Te
 - [ ] I10.1 Merge K1–K3; `make test`; `make install`
 - [ ] I10.2 Fixture `toc dir/a.md` (space in path): frontmatter; `# Title`; `## Intro`; `## Intro`; `### *Em* and \`code\``;`#### H4`;`##### H5`;`###### H6`; raw`<h2 id="custom">Raw</h2>`; raw`<h3></h3>`; a fenced block containing`# not a heading`; a Mermaid block; 60 filler paragraphs between headings. Temporary env-guarded harness (not committed), reads`TOCController.entries` and calls `go(i)` (the `Button` action path):
   - entries = `Title, Intro, Intro, Em and code, H4, H5, H6, Raw, —` with depths `0,1,1,2,3,4,5,1,2`; no entry for the fence or frontmatter
-  - `go(3)` → that heading's `getBoundingClientRect().top` ≈ 0 (± 2 px) right after the call (instant); page `Marked.token` unchanged (no reload); `go(99)` → no scroll, no crash
+  - Instant scroll: harness `await`s `callAsyncJavaScript("const ok = Marked.toc.go(3); return [ok, document.getElementById('content').querySelectorAll('h1, h2, h3, h4, h5, h6')[3].getBoundingClientRect().top]")` → `[true, ≈ 0 ± 2 px]` (same JS turn = no animation); page `Marked.token` unchanged (no reload)
+  - Button path: `TOCController.go(3)` (schedules a `Task`) → harness polls the heading's `top` every 50 ms, ≤ 1 s → ≈ 0 ± 2 px; `go(99)` → `false`, no scroll, no crash
   - live reload: append `## New` → last entry `New`; replace the file with headingless text → entries `[]`, sidebar shows "No headings"; restore → entries back
   - shell reload (terminate path) → entries repopulate
   - toggle: posted Ctrl-Cmd-S → both windows show the sidebar, `tocVisible == true`; again → both hide; relaunch keeps the stored state
+  - live scroll with the sidebar open: scroll to top, edit a filler paragraph below `##### H5` (offscreen) → that block's `data-sourcepos` element is in the viewport (centered, ± 1 line) and `el.getAnimations().length > 0` (flash), and TOC entries are unchanged
   - with the sidebar open: `WebView.findController(in: keyWindow)` non-nil; find `Intro` → `1 of 2`; error banner (rename the file away) still shows above the web view
   - ≥ 2 s between launches; `--args -ApplePersistenceIgnoreState YES`; pick window by `webView.url?.path`
 - [ ] I10.3 Manual (person at the keyboard): click rows with the mouse → scrolls; Ctrl-Cmd-S from the keyboard; drag the sidebar edge; title-bar sidebar button toggles all windows
