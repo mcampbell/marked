@@ -2,6 +2,10 @@
 public final class RenderQueue {
     public var changedLine: (String, String) -> Int? = { _, _ in nil }
     public var onFailure: (Error) -> Void = { _ in }
+    /// S2 style seam (W2 stubs).
+    public var sendStyle: (String) async throws -> Void = { _ in }
+    public var onStyleApplied: () -> Void = {}
+    public var onStyleFailure: (Error) -> Void = { _ in }
 
     private let render: (String) -> String
     private let send: (String, Int?) async throws -> RenderResult
@@ -26,6 +30,9 @@ public final class RenderQueue {
         pending = source
         pump()
     }
+
+    /// W2 stub.
+    public func setStyle(_ css: String) {}
 
     public func markReady() {
         ready = true

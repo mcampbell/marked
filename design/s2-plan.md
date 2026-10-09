@@ -63,11 +63,11 @@ public func setStyle(_ css: String)
 
 ### W2 — stubs (sequential, main loop)
 
-- [ ] W2.1 Branch `s2-styles` from `s4-frontmatter`
-- [ ] W2.2 `Style.swift`: cases real; `default` = `.sans`; `init(stored:)` → `.sans`; `title`/`shortcut`/`resource` placeholders that compile (e.g. `rawValue`, `"0"`)
-- [ ] W2.3 `RenderQueue`: every frozen addition, so Y4 builds without Y3: `public var sendStyle: (String) async throws -> Void = { _ in }`, `public var onStyleApplied: () -> Void = {}`, `public var onStyleFailure: (Error) -> Void = { _ in }`, `public func setStyle(_ css: String) {}`
-- [ ] W2.4 `Resources/styles/{mono,serif,sans}.css` each `:root {}`
-- [ ] W2.5 `make test` + `make app` green → commit → fork worktrees
+- [x] W2.1 Branch `s2-styles` from `s4-frontmatter`
+- [x] W2.2 `Style.swift`: cases real; `default` = `.sans`; `init(stored:)` → `.sans`; `title`/`shortcut`/`resource` placeholders that compile (e.g. `rawValue`, `"0"`)
+- [x] W2.3 `RenderQueue`: every frozen addition, so Y4 builds without Y3: `public var sendStyle: (String) async throws -> Void = { _ in }`, `public var onStyleApplied: () -> Void = {}`, `public var onStyleFailure: (Error) -> Void = { _ in }`, `public func setStyle(_ css: String) {}`
+- [x] W2.4 `Resources/styles/{mono,serif,sans}.css` each `:root {}`
+- [x] W2.5 `make test` + `make app` green → commit → fork worktrees
 
 ### Y1 — Style enum (builder)
 
