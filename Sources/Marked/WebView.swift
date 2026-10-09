@@ -80,7 +80,27 @@ struct WebView: NSViewRepresentable {
         private var shell: URL?
         weak var findController: FindController?
         /// Runs the side effect of a link click. A seam so a live check can record instead of open.
-        var performLink: (LinkAction) -> Void = { _ in }
+        var performLink: (LinkAction) -> Void = { action in
+            switch action {
+            case .allow, .cancel:
+                return
+            case .openExternal(let u):
+                NSLog("Marked link: openExternal %@", u.absoluteString)
+                NSWorkspace.shared.open(u)
+            case .openDocument(let u):
+                NSLog("Marked link: openDocument %@", u.absoluteString)
+                NSDocumentController.shared.openDocument(withContentsOf: u, display: true) { _, _, error in
+                    if let error { DispatchQueue.main.async { _ = NSApp.presentError(error) } }
+                }
+            case .reveal(let u):
+                NSLog("Marked link: reveal %@", u.absoluteString)
+                if FileManager.default.fileExists(atPath: u.path) {
+                    NSWorkspace.shared.activateFileViewerSelecting([u])
+                } else {
+                    _ = NSApp.presentError(CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: u.path]))
+                }
+            }
+        }
 
         func apply(_ style: Style) {
             // Remember the style only once the queue exists, so an early call cannot mark it as requested.

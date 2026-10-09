@@ -67,26 +67,26 @@ var performLink: (LinkAction) -> Void        // default: the effects in "Own dec
 
 ### K1 — LinkPolicy (builder)
 
-- [ ] K1.1 Tests first (no `import Foundation`; URLs via `.init(string:)!`), shell `marked://doc/Users/me/My%20Docs/__marked__.html`:
+- [x] K1.1 Tests first (no `import Foundation`; URLs via `.init(string:)!`), shell `marked://doc/Users/me/My%20Docs/__marked__.html`:
   - shell, shell + `#x`, both with `linkActivated` false and true → `.allow`
   - `https://e.com`, `http://e.com`, `mailto:a@b.c` + click → `.openExternal(same URL)`; same + not a click → `.cancel`
   - `marked://doc/Users/me/My%20Docs/b.md` + click → `.openDocument(file:///Users/me/My Docs/b.md)`; `B.MD`, `.markdown`, `.mdown`, `b.md#sec`, `b.md?x=1` → `.openDocument` without query or fragment; `sub%20dir/c.md` decodes the space; a `%23` in a name stays part of the path
   - `marked://doc/…/notes.txt`, `…/report.pdf`, `…/Tool.app` + click → `.reveal(file URL)`; not a click → `.cancel`
   - `file:///etc/hosts`, `javascript:alert(1)`, `data:text/html,x`, `marked://app/base.css` + click → `.cancel`
   - another directory's shell (`marked://doc/other/__marked__.html`) + click → `.cancel` (a shell file is never a target; reuse the `shellName` check)
-- [ ] K1.2 Implement per "Rules (frozen order)", reusing `DocURL.filePath` and `DocURL.shellName`
+- [x] K1.2 Implement per "Rules (frozen order)", reusing `DocURL.filePath` and `DocURL.shellName`
 
 ### K2 — anchors.js (builder)
 
-- [ ] K2.1 Node tests first (`Tests/js/anchors.test.mjs`): `Intro` → `intro`; second `Intro` → `intro-1`, third → `intro-2`; `C++ & Go!` → `c--go`; `Héllo Wörld` → `héllo-wörld`; `日本語 見出し` → `日本語-見出し`; `snake_case-ok` → `snake_case-ok`; `x²` → `x`; `Ⓐ` → `ⓐ`; the string space-a-space (`"\u0020a\u0020"`, written as an escape in the test) → `-a-`; emoji dropped (`Ship 🚀 it` → `ship--it`); `reserve("intro")` then `Intro` → `intro-1`; `Intro`, `Intro-1`, `Intro` → `intro`, `intro-1`, `intro-2`; `reserve("intro-1")` then `Intro`, `Intro` → `intro`, `intro-2`; empty heading → `""` then `-1` on repeat (as github-slugger)
-- [ ] K2.2 Implement `slugger` (module-level regex with the `u` flag)
-- [ ] K2.3 `decorate` hook `addHeadingIds`: one `slugger()` per render; reserve existing `id`s on `#content h1…h6` first; then set `id = slug(textContent)` where missing and the slug is non-empty
-- [ ] K2.4 `node --test 'Tests/js/*.test.mjs'` green
+- [x] K2.1 Node tests first (`Tests/js/anchors.test.mjs`): `Intro` → `intro`; second `Intro` → `intro-1`, third → `intro-2`; `C++ & Go!` → `c--go`; `Héllo Wörld` → `héllo-wörld`; `日本語 見出し` → `日本語-見出し`; `snake_case-ok` → `snake_case-ok`; `x²` → `x`; `Ⓐ` → `ⓐ`; the string space-a-space (`"\u0020a\u0020"`, written as an escape in the test) → `-a-`; emoji dropped (`Ship 🚀 it` → `ship--it`); `reserve("intro")` then `Intro` → `intro-1`; `Intro`, `Intro-1`, `Intro` → `intro`, `intro-1`, `intro-2`; `reserve("intro-1")` then `Intro`, `Intro` → `intro`, `intro-2`; empty heading → `""` then `-1` on repeat (as github-slugger)
+- [x] K2.2 Implement `slugger` (module-level regex with the `u` flag)
+- [x] K2.3 `decorate` hook `addHeadingIds`: one `slugger()` per render; reserve existing `id`s on `#content h1…h6` first; then set `id = slug(textContent)` where missing and the slug is non-empty
+- [x] K2.4 `node --test 'Tests/js/*.test.mjs'` green
 
 ### K3 — coordinator effects (builder)
 
-- [ ] K3.1 `performLink` default per "Effects (app layer)": `NSWorkspace.shared.open`, `NSDocumentController.shared.openDocument(withContentsOf:display: true) { _, _, error in if let error { NSApp.presentError(error) } }`, reveal with an existence check, `NSLog` per action. No change to `didFinish`, the ready gate, the terminate path, or rule order (all in `LinkPolicy`)
-- [ ] K3.2 `make app` builds, no warnings; `make test` green
+- [x] K3.1 `performLink` default per "Effects (app layer)": `NSWorkspace.shared.open`, `NSDocumentController.shared.openDocument(withContentsOf:display: true) { _, _, error in if let error { NSApp.presentError(error) } }`, reveal with an existence check, `NSLog` per action. No change to `didFinish`, the ready gate, the terminate path, or rule order (all in `LinkPolicy`)
+- [x] K3.2 `make app` builds, no warnings; `make test` green
 
 ### I6 — integrate + live check (sequential, main loop)
 
