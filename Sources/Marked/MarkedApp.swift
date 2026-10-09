@@ -1,15 +1,16 @@
 import SwiftUI
 import MarkedCore
 
+/// Commands act on the key window's find bar. Resolved through AppKit at click time:
+/// @FocusedValue / @FocusedObject stayed nil in this DocumentGroup (S3 live check).
 struct FindCommands: Commands {
-    @FocusedValue(\.findController) private var find
+    private var find: FindController? { WebView.findController(in: NSApp.keyWindow) }
 
     var body: some Commands {
         CommandGroup(after: .textEditing) {
-            Button("Find…") { find?.show() }.keyboardShortcut("f").disabled(find == nil)
-            Button("Find Next") { find?.next() }.keyboardShortcut("g").disabled(find == nil)
+            Button("Find…") { find?.show() }.keyboardShortcut("f")
+            Button("Find Next") { find?.next() }.keyboardShortcut("g")
             Button("Find Previous") { find?.previous() }.keyboardShortcut("g", modifiers: [.command, .shift])
-                .disabled(find == nil)
         }
     }
 }

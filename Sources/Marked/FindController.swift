@@ -38,11 +38,3 @@ final class FindController: ObservableObject {
     func previous() { session.previous() }
 }
 
-private struct FindControllerKey: FocusedValueKey { typealias Value = FindController }
-
-extension FocusedValues {
-    var findController: FindController? {
-        get { self[FindControllerKey.self] }
-        set { self[FindControllerKey.self] = newValue }
-    }
-}

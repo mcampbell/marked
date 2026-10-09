@@ -11,7 +11,7 @@ struct ReaderView: View {
 
     var body: some View {
         WebView(fileURL: config?.fileURL, style: Style(stored: stored),
-                failure: $failure, styleFailure: $styleFailure, banner: $banner, find: find.session)
+                failure: $failure, styleFailure: $styleFailure, banner: $banner, find: find)
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     if find.view.isVisible { FindBar(find: find) }
@@ -21,7 +21,6 @@ struct ReaderView: View {
                     }
                 }
             }
-            .focusedSceneValue(\.findController, find)
             .navigationSubtitle([failure.map { "Render failed: \($0)" }, styleFailure.map { "Style failed: \($0)" }]
                 .compactMap { $0 }.joined(separator: " · "))
     }

@@ -28,7 +28,7 @@ Critical path: W3 → join(K1–K4) → I3. Expected longest: K1 or K2.
 - **Text index.** Text nodes under `#content` in document order, skipping `div.mermaid`, `svg`, `script`, `style`, `.render-error`, and (fallback backend) existing `.find-hit` wrappers are unwrapped first. Joined into one string; where the nearest block ancestor changes, insert `\u0000` so a match never spans two blocks. Frontmatter is searchable (D30)
 - **JS state.** `query` and `index` live in JS so the `decorate` hook re-applies after every render (no scroll; keep the index or clamp to the last match)
 - **Navigation** wraps; the current match scrolls into view (`range.getBoundingClientRect()` → smooth `scrollBy` to center). `restore` and the render hook never scroll
-- **Keys.** Cmd-F (menu item) and Ctrl-F (local `NSEvent` key-down monitor; a SwiftUI menu item has one shortcut) open the bar and focus the field; Enter / Shift-Enter in the field; Cmd-G / Shift-Cmd-G menu items; Esc closes. Commands reach the key window's `FindController` through `@FocusedValue`
+- **Keys.** Cmd-F (menu item) and Ctrl-F (local `NSEvent` key-down monitor; a SwiftUI menu item has one shortcut) open the bar and focus the field; Enter / Shift-Enter in the field; Cmd-G / Shift-Cmd-G menu items; Esc closes. Commands reach the key window's `FindController` through `WebView.findController(in: NSApp.keyWindow)` (`@FocusedValue` stayed nil, see I3.2)
 - Case-insensitive only, no options; bar above the error banner (D30)
 
 ## Frozen contracts (W3)
@@ -149,8 +149,8 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 
 ### I3 — integrate + live check (sequential, main loop)
 
-- [ ] I3.1 Merge K1–K4 (copy files); `make test` (Swift + JS); `make install`
-- [ ] I3.2 Fixture with: a word in plain text, in `**bold**`, split across `**bo**ld`, inside a link, in frontmatter, across a soft line break ("should\nrender"), and in a code block; a sentence ending one paragraph and another starting the next. Temporary env-guarded harness (not committed) drives the `FindController`:
+- [x] I3.1 Merge K1–K4 (copy files); `make test` (Swift + JS); `make install`
+- [x] I3.2 (2026-10-09: 26/26 pass. `needle` 6 incl. frontmatter, bold, `**nee**dle`, link, code; `needle in` 5 across bold/link; `should render` 1; `paragraph. Start` 0; next×6 → 1 of 6, previous → 6 of 6; append → 6 of 7, 7 ranges; shell reload at 3 of 7 → 3 of 7, JS 7/2, scrollY 0; forced throw → "Find failed", next → 4 of 7; close → `CSS.highlights` empty; `#content.innerHTML` unchanged; synthetic Ctrl-F opens bar. **Deviation:** `@FocusedValue` and `@FocusedObject` stayed nil in this `DocumentGroup` (menu item disabled with the window key), so `FindCommands` resolve the key window → `WKWebView` → `Coordinator.findController` at click time; `WebView` takes the `FindController`) Fixture with: a word in plain text, in `**bold**`, split across `**bo**ld`, inside a link, in frontmatter, across a soft line break ("should\nrender"), and in a code block; a sentence ending one paragraph and another starting the next. Temporary env-guarded harness (not committed) drives the `FindController`:
   - counts match the fixture for each query; the cross-paragraph query finds nothing
   - from index 0, `next` × `count` returns to index 0; `previous` from 0 goes to `count - 1`
   - append to the file → highlights survive the render, the count updates, scroll follows S1 (not find)

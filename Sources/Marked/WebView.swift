@@ -8,7 +8,7 @@ struct WebView: NSViewRepresentable {
     @Binding var failure: String?
     @Binding var styleFailure: String?
     @Binding var banner: String?
-    let find: FindSession
+    let find: FindController
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -29,7 +29,8 @@ struct WebView: NSViewRepresentable {
         }
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = c
-        c.start(web, fileURL: fileURL, find: find)
+        c.findController = find
+        c.start(web, fileURL: fileURL, find: find.session)
         c.apply(style)
         return web
     }
@@ -38,6 +39,15 @@ struct WebView: NSViewRepresentable {
 
     static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
         coordinator.stop()
+    }
+
+    /// The find controller of the document shown in `window`, if any.
+    @MainActor static func findController(in window: NSWindow?) -> FindController? {
+        func web(in v: NSView) -> WKWebView? {
+            if let w = v as? WKWebView { return w }
+            return v.subviews.lazy.compactMap(web).first
+        }
+        return window?.contentView.flatMap(web).flatMap { ($0.navigationDelegate as? Coordinator)?.findController }
     }
 
     static func resource(_ name: String, _ ext: String, subdirectory: String? = nil) -> String {
@@ -66,6 +76,7 @@ struct WebView: NSViewRepresentable {
         private var hasRendered = false
         private var shell: URL?
         private var find: FindSession?
+        weak var findController: FindController?
 
         func apply(_ style: Style) {
             // Remember the style only once the queue exists, so an early call cannot mark it as requested.
