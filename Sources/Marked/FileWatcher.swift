@@ -1,4 +1,5 @@
 import Foundation
+import MarkedCore
 
 enum ReadError: Error, CustomStringConvertible {
     case unreadable(String)
@@ -12,7 +13,28 @@ enum ReadError: Error, CustomStringConvertible {
     }
 }
 
-enum FileWatcher {
+@MainActor
+final class FileWatcher {
+    private let url: URL
+    private let interval: TimeInterval
+    private let onEvent: (WatchEvent) -> Void
+
+    init(url: URL, interval: TimeInterval = 0.5, onEvent: @escaping (WatchEvent) -> Void) {
+        self.url = url
+        self.interval = interval
+        self.onEvent = onEvent
+    }
+
+    /// W1 stub: one real read, no polling (keeps S0 behavior until Q2 lands).
+    func start() {
+        switch Self.read(url) {
+        case .success(let text): onEvent(.text(text))
+        case .failure(let e): onEvent(.error(e.description))
+        }
+    }
+
+    func stop() {}
+
     static func read(_ url: URL) -> Result<String, ReadError> {
         let data: Data
         do { data = try Data(contentsOf: url) } catch {

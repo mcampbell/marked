@@ -79,10 +79,10 @@ extension Bundle { func requiredResource(_ name: String, _ ext: String, subdirec
 
 ### W1 — stubs (sequential, main loop)
 
-- [ ] W1.1 Branch `s1-live` from `s0-skeleton`
+- [x] W1.1 Branch `s1-live` from `s0-skeleton`
 - [x] W1.2 `Bundle.requiredResource(_:_:subdirectory:)`; `WebView.resource` passes it through (done in S0 baseline)
-- [ ] W1.3 Stubs compiling with placeholder bodies: `LineDiff.firstChangedLine` → `nil`; `WatchState.step` → `[]`; `FileWatcher` class whose stub `start()` does **one real read** (`Self.read(url)` → `onEvent(.text(s))` or `.error(e.description)`), `stop()` no-op, keep `static read`. This keeps S0 behavior so Q4 can show the fixture before Q2 lands; `Resources/js/scroll.js` registering a no-op `position` hook
-- [ ] W1.4 `make test` + `make app` green → commit → fork worktrees
+- [x] W1.3 Stubs compiling with placeholder bodies: `LineDiff.firstChangedLine` → `nil`; `WatchState.step` → `[]`; `FileWatcher` class whose stub `start()` does **one real read** (`Self.read(url)` → `onEvent(.text(s))` or `.error(e.description)`), `stop()` no-op, keep `static read`. This keeps S0 behavior so Q4 can show the fixture before Q2 lands; `Resources/js/scroll.js` registering a no-op `position` hook
+- [x] W1.4 `make test` + `make app` green → commit → fork worktrees
 
 ### Q1 — LineDiff (builder)
 
