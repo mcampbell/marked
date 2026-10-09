@@ -95,7 +95,7 @@ public enum ImageStamp {
 ### T3 — ImageStamp (builder)
 
 - [ ] T3.1 Tests first (no `import Foundation`; shell `marked://doc/tmp/d/__marked__.html` via `.init(string:)!`; fake `mtime` dictionary keyed by path):
-  - `<img src="a.png" alt="x" />` → `src="a.png?v=12"` when `/tmp/d/a.png` → 12
+  - `<img src="a.png" alt="x" />` → `src="a.png?v=12000"` when `/tmp/d/a.png` → 12.0 s (v = integer milliseconds); 12.0004 s → `v=12000`, 12.5 s → `v=12500`
   - `../up.png` → stamped via `/tmp/up.png`; absolute `/abs/p.png` → stamped
   - percent-encoded `a%20b.png` → mtime looked up as `/tmp/d/a b.png`; `src` keeps its encoding
   - mtime `nil` (missing file) → unchanged
@@ -104,12 +104,14 @@ public enum ImageStamp {
   - two images, one changed mtime → each gets its own `v`
   - single-quoted `src='a.png'` → unchanged (deferred scope)
   - non-`img` tags with `src` (e.g. `<source src>`) → unchanged
+  - `<img data-src="other.png" src="a.png">` → only `src` stamped, `data-src` untouched (regression)
+  - `<IMG SRC="a.png">` → stamped (case-insensitive)
   - output differs from input only inside the stamped `src` values
-- [ ] T3.2 Implement with one regex over `<img\b[^>]*?\bsrc="([^"]*)"` (NSRegularExpression), replacing from the end so ranges stay valid; `v` = integer milliseconds (`Int(mtime * 1000)`)
+- [ ] T3.2 Implement with one case-insensitive regex `<img\b[^>]*?(?<=\s)src="([^"]*)"` (NSRegularExpression). The `(?<=\s)` lookbehind makes `src` a real attribute name: `\bsrc` also matches inside `data-src` (a word boundary follows the hyphen). Verified 2026-10-09: old pattern captures `other.png` from `<img data-src="other.png" src="a.png">`, new pattern captures `a.png`. replacing from the end so ranges stay valid; `v` = integer milliseconds (`Int(mtime * 1000)`): two saves inside one second still get different stamps (APFS keeps sub-second mtimes)
 
 ### I7 — integrate + live check (sequential, main loop)
 
-- [ ] I7.1 Merge T1, T2 (copy files from worktrees); `make test`; `make install`
+- [ ] I7.1 Merge T1, T2 **and T3** (copy files from worktrees; T3 replaces the identity `ImageStamp.apply` stub and adds `ImageStampTests`); `make test` (confirm `ImageStampTests` ran); `make install`
 - [ ] I7.2 Fixture `~/tmp/marked fixtures/img dir/doc.md` (spaced path) with `img.png` beside it, `../up.png`, `sub/a b.svg`, an absolute-path image, `notes.txt` linked as an image, a symlink `evil.png` → a text file, and a missing image. Temporary env-guarded harness (not committed) reads each `<img>`'s `naturalWidth` after load: the four real images > 0; the `.txt`, symlink, and missing ones = 0. Cache-busting: replace `img.png` with a different-size image, append a line to `doc.md` → after the render, `img.png`'s `naturalWidth` matches the new image and its `src` carries a new `v`
 - [ ] I7.3 code-reviewer loop until clean (max 5); commit on `s7-images`; tick S7 in `design.md`
 
