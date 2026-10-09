@@ -3,6 +3,7 @@ import MarkedCore
 
 @main
 struct MarkedApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("style") private var stored = Style.default.rawValue
 
     var body: some Scene {

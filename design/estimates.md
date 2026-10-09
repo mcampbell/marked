@@ -15,7 +15,7 @@ Scale: trivial/easy/medium/hard = 0.5/1/2/4. Relative within this session.
 | S5 Mermaid | easy | 1 |
 | S6 Links | easy | 1 |
 | S8 Highlight (`==text==` JS hook) | easy | 1 |
-| **Slices total** | | **15** |
+| **Slices total** | | **15.5** |
 
 ## Merge conflicts
 
@@ -35,4 +35,4 @@ Scale: trivial/easy/medium/hard = 0.5/1/2/4. Relative within this session.
 | R2 design gate | S0 spike (a) fails → user decision | unestimated |
 | **Rework total** | | **0.5 firm** (+ R2 gate, unestimated) |
 
-**Grand total: 17.5 firm (15 slices + 2 conflicts + 0.5 rework), plus R2 design gate if spike (a) fails (unestimated).**
+**Grand total: 18 firm (15.5 slices + 2 conflicts + 0.5 rework), plus R2 design gate if spike (a) fails (unestimated).**
