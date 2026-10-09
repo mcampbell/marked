@@ -12,4 +12,4 @@ pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #ee
 .find-hit { background: #ffe58a }
 .find-current { background: #ff9632 }
 div.mermaid { text-align: center; margin: 1em 0 }
-.mermaid-error { color: #c00; font-size: .9em; margin: -.5em 0 1em }
+.mermaid-error { color: #c00; font: .85em/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; margin: -.5em 0 1em }

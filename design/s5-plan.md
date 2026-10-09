@@ -71,15 +71,15 @@ div.mermaid { text-align: center; margin: 1em 0 }
 
 ### K1 — mermaid-hook.js (builder)
 
-- [ ] K1.1 Node tests first (`Tests/js/mermaid.test.mjs`), fake `render`: all ok → `[{svg}…]` in order; one throws → `{error: msg}` at its index, the rest still `{svg}`; a non-Error throw → `String(e)`; sequential (the fake records start/end; no overlap); ids unique across two `renderAll` calls; empty input → `[]` and no call
-- [ ] K1.2 Implement `renderAll`
-- [ ] K1.3 DOM layer + hook per "Own decisions": collect blocks, `renderAll` with `mermaid.render` (svg from `{svg}`), apply results, copy `data-sourcepos`, error note via `textContent`, remove leftovers per W5.4 (e) (`initialize` is already in place from W5.3)
-- [ ] K1.4 `node --test 'Tests/js/*.test.mjs'` green
+- [x] K1.1 Node tests first (`Tests/js/mermaid.test.mjs`), fake `render`: all ok → `[{svg}…]` in order; one throws → `{error: msg}` at its index, the rest still `{svg}`; a non-Error throw → `String(e)`; sequential (the fake records start/end; no overlap); ids unique across two `renderAll` calls; empty input → `[]` and no call
+- [x] K1.2 Implement `renderAll`
+- [x] K1.3 DOM layer + hook per "Own decisions": collect blocks, `renderAll` with `mermaid.render` (svg from `{svg}`), apply results, copy `data-sourcepos`, error note via `textContent`, remove leftovers per W5.4 (e) (`initialize` is already in place from W5.3)
+- [x] K1.4 `node --test 'Tests/js/*.test.mjs'` green
 
 ### I5 — integrate + live check (sequential, main loop)
 
-- [ ] I5.1 Merge K1; `make test`; `make install`
-- [ ] I5.2 Fixture: a paragraph, a good flowchart with a node label `needle`, a syntax-bad block with `needle` only on a valid line before the error line (`flowchart TD` / `  A[needle] --> B` / `  B --> --> C`), the render-bad block from W5.4 (if any), a paragraph `needle` after. Temporary env-guarded harness (not committed):
+- [x] I5.1 Merge K1; `make test`; `make install`
+- [x] I5.2 (2026-10-09: all pass. 2 rendered with their `data-sourcepos` `5:1-9:3`, `11:1-14:3`; syntax-bad + `Invalid date:2024-13-45` keep `<pre>` + note; no `.render-error`; no leftovers; arrowhead PNG checked; find `needle` 1 of 2; injected failure → "Mermaid: injected" after its `<pre>`, next diagram still renders, fake `#d<id>` removed, find 1 of 2 with 2 live highlights, ids `mmd-0,1` → `mmd-5`; R1: scrollY 0 → 1514, diagram center 290 of 418, re-rendered with `D`. Relaunches need `--args -ApplePersistenceIgnoreState YES`, else window restoration reopens old fixtures) Fixture: a paragraph, a good flowchart with a node label `needle`, a syntax-bad block with `needle` only on a valid line before the error line (`flowchart TD` / `  A[needle] --> B` / `  B --> --> C`), the render-bad block from W5.4 (if any), a paragraph `needle` after. Temporary env-guarded harness (not committed):
   - good → `div.mermaid` with `<svg>` and the `<pre>`'s `data-sourcepos`; no `pre code.language-mermaid` left for it
   - bad → `<pre>` kept + `.mermaid-error` text starts with `"Mermaid: "`; the render result `{ok: true, errors: []}`; no `.render-error`
   - no `body > [id^="mmd-"], body > [id^="dmmd-"]` leftovers
@@ -89,7 +89,7 @@ div.mermaid { text-align: center; margin: 1em 0 }
   - live reload: append a line → diagrams render again, ids increase, still no leftovers
   - **R1:** add 40 filler paragraphs before the diagram, scroll to top, change one line inside the good diagram → after the render the diagram's rect is near the viewport center
   - ≥ 2 s between launches
-- [ ] I5.3 code-reviewer loop (+ `mc-code-security` for the SVG insertion) until clean (max 5) → `design/s5-review.md`; tick S5 and R1 in `design.md`; commit on `s5-mermaid`
+- [x] I5.3 (2 rounds, `design/s5-review.md`) code-reviewer loop (+ `mc-code-security` for the SVG insertion) until clean (max 5) → `design/s5-review.md`; tick S5 and R1 in `design.md`; commit on `s5-mermaid`
 
 ## Merge conflicts
 

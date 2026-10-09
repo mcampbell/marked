@@ -82,7 +82,7 @@ Sliced design: 9 slices. S0 first. S1–S8 run as parallel streams after S0, one
 | S2 ✅ | Styles | Cmd-1/2/3 swap mono/serif/sans, all windows, persisted | `Style`, `styles/*.css`, `MarkedApp.commands`, `WebView` |
 | S3 ✅ | Find | Cmd-F / Ctrl-F bar, highlight all, "n of m", Enter/Cmd-G next, Shift-Cmd-G prev, Esc close. Re-apply after render (hook) | `FindBar`, `js/find.js`, `MarkedApp.commands`, `ReaderView`, `WebView` (find bridge: query/next/prev → match index + count) |
 | S4 ✅ | Frontmatter | Line-1 `---` block → verbatim monospace block, any style | `Frontmatter`, `HTMLRenderer`, `base.css` |
-| S5 | Mermaid | ` ```mermaid ` → diagram. Bad diagram → error + source. Offline. Checks: flowchart arrowheads (`url(#marker)`) render; fixture with one good, one syntax-bad, one render-bad diagram → good renders, both bad show source + error, later phases still run | `vendor/mermaid.min.js`, `js/mermaid-hook.js`, `WebView` |
+| S5 ✅ | Mermaid | ` ```mermaid ` → diagram. Bad diagram → error + source. Offline. Checks: flowchart arrowheads (`url(#marker)`) render; fixture with one good, one syntax-bad, one render-bad diagram → good renders, both bad show source + error, later phases still run | `vendor/mermaid.min.js`, `js/mermaid-hook.js`, `WebView` |
 | S6 | Links | Web link → browser. `.md` link → new window. `#anchor` → in-page | `WebView` coordinator (nav delegate), `js/anchors.js` |
 | S8 | Highlight | `==text==` outside code → `<mark>text</mark>`. Literal inside `pre`, `code`, `kbd`, `samp` (Marked 2 bug, D23). Shared helper + node test step are in the S0 baseline, so no prerequisite beyond S0 | `js/highlight.js`, `Tests/js/highlight.test.mjs`, `WebView.userScripts` (one line) |
 
@@ -134,7 +134,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 ## Rework (named, accepted)
 
-- R1 Scroll must run after mermaid changes height. Guaranteed by phases (`position` after `transform`); the second of S1/S5 to land runs one manual check: edit inside a diagram → scroll lands on that diagram
+- R1 ✅ (S5 I5.2, 2026-10-09) Scroll must run after mermaid changes height. Guaranteed by phases (`position` after `transform`); the second of S1/S5 to land runs one manual check: edit inside a diagram → scroll lands on that diagram
 - R2 Design gate, not a fix. If S0 spike (a) fails, stop S0 and return to the user. No fallback is pre-approved: a CSP nonce cannot override `allowsContentJavaScript = false`, so any fallback means enabling page JS (plus strict `script-src`), which changes the Q8 isolation model. Unestimated until decided
 
 ## Per-slice check
