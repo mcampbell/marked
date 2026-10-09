@@ -106,8 +106,17 @@ public enum ImageStamp {
   - non-`img` tags with `src` (e.g. `<source src>`) → unchanged
   - `<img data-src="other.png" src="a.png">` → only `src` stamped, `data-src` untouched (regression)
   - `<IMG SRC="a.png">` → stamped (case-insensitive)
+  - `<img alt=' src="other.png"' src="a.png">` → only the real `src` stamped; `alt` text byte-identical (regression)
+  - `<img alt="a > b" src="a.png">` → stamped (a `>` inside a quoted value does not end the tag)
+  - `<img` + real newline + `src="a.png">` → stamped
+  - `<!-- <img src="c.png"> -->` → comment unchanged
+  - `<a title="<img src='x'>">` → unchanged (not a real `img` tag)
   - output differs from input only inside the stamped `src` values
-- [ ] T3.2 Implement with one case-insensitive regex `<img\b[^>]*?(?<=\s)src="([^"]*)"` (NSRegularExpression). The `(?<=\s)` lookbehind makes `src` a real attribute name: `\bsrc` also matches inside `data-src` (a word boundary follows the hyphen). Verified 2026-10-09: old pattern captures `other.png` from `<img data-src="other.png" src="a.png">`, new pattern captures `a.png`. replacing from the end so ranges stay valid; `v` = integer milliseconds (`Int(mtime * 1000)`): two saves inside one second still get different stamps (APFS keeps sub-second mtimes)
+- [ ] T3.2 Implement with a quote-aware tag scan, not a single `src` regex (a lone regex cannot tell a real attribute from text inside another attribute's quotes). Two `NSRegularExpression`s, prototyped 2026-10-09:
+  - attribute: `\s+([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?`
+  - tag: `<!--[\s\S]*?-->|<([A-Za-z][^\s/>]*)((?:<attribute>)*)\s*/?>` — scanned left to right over the whole HTML, so comments and quoted values (including `>` and `<img` inside them) are consumed whole
+  - for each tag named `img` (case-insensitive): walk its attributes, take the **first** `src` (case-insensitive); stamp only when it is double-quoted (group 2). Replace from the end so ranges stay valid
+  - prototype results: `<img alt=' src="other.png"' src="a.png">` → `a.png`; `<img alt="a > b" src="a.png">` → `a.png`; `data-src` → ignored; newline before `src` → found; `<img>` inside a comment or inside another tag's attribute → ignored; `<IMG SRC>` → found; single-quoted `src` → ignored (deferred)
 
 ### I7 — integrate + live check (sequential, main loop)
 
