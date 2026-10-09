@@ -36,6 +36,7 @@ struct WebView: NSViewRepresentable {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
         }
+        cfg.userContentController.add(TOCMessages(c), contentWorld: .defaultClient, name: "toc")
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = c
         c.findController = find
@@ -227,6 +228,11 @@ struct WebView: NSViewRepresentable {
             }
         }
 
+        /// S13 scroll-spy post from `js/toc.js`.
+        func tocMessage(_ body: Any) {
+            do { tocController?.mark(try TOC.current(body)) } catch { NSLog("Marked toc spy: \(error)") }
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             queue?.markReady()
         }
@@ -261,5 +267,17 @@ extension WKWebView {
     func printAsSheet() {
         guard let window else { return }
         makePrintOperation().runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+}
+
+/// Receives `toc` posts in the `.defaultClient` world. The content controller holds this strongly;
+/// it holds the coordinator weakly, so the handler never keeps the coordinator alive.
+final class TOCMessages: NSObject, WKScriptMessageHandler {
+    private weak var coordinator: WebView.Coordinator?
+
+    init(_ coordinator: WebView.Coordinator) { self.coordinator = coordinator }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        coordinator?.tocMessage(message.body)
     }
 }

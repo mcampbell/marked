@@ -72,38 +72,38 @@ final class TOCMessages: NSObject, WKScriptMessageHandler {   // weak var coordi
 
 ### W13 — stubs + spike (sequential, main loop)
 
-- [ ] W13.1 Branch `s13-scrollspy` from `s10-s13-design`
-- [ ] W13.2 Stubs per "Frozen contracts"; register `TOCMessages` on the config (design.md S13 rule already updated with this plan)
-- [ ] W13.3 Spike (temp env-guarded harness, not committed): a temporary line in the `toc.js` app block posts `postMessage(-1)` once at load and once from a `position` hook; `tocMessage` logs each receipt with `Thread.isMainThread`. Check: (a) both posts arrive, on the main thread; (b) `typeof window.webkit?.messageHandlers?.toc` is `"object"` via `callAsyncJavaScript` in `.defaultClient`; (c) the same expression in the page world (`evaluateJavaScript` without a content world, if it runs with page JS off) is not `"object"`, else record "page world not observable". (a) or (b) fails → stop and report to the user (no fallback is pre-approved; polling would change the design)
-- [ ] W13.4 Remove the spike lines; `make test` + `make app` green, no warnings → commit
+- [x] W13.1 Branch `s13-scrollspy` from `s10-s13-design`
+- [x] W13.2 Stubs per "Frozen contracts"; register `TOCMessages` on the config (design.md S13 rule already updated with this plan)
+- [x] W13.3 (result: (a) ✅ main thread, (b) ✅ `object`, (c) page world `undefined`) Spike (temp env-guarded harness, not committed): a temporary line in the `toc.js` app block posts `postMessage(-1)` once at load and once from a `position` hook; `tocMessage` logs each receipt with `Thread.isMainThread`. Check: (a) both posts arrive, on the main thread; (b) `typeof window.webkit?.messageHandlers?.toc` is `"object"` via `callAsyncJavaScript` in `.defaultClient`; (c) the same expression in the page world (`evaluateJavaScript` without a content world, if it runs with page JS off) is not `"object"`, else record "page world not observable". (a) or (b) fails → stop and report to the user (no fallback is pre-approved; polling would change the design)
+- [x] W13.4 Remove the spike lines; `make test` + `make app` green, no warnings → commit
 
 ### K1 — TOC.current (builder)
 
-- [ ] K1.1 Tests first (`TOCTests.swift`, no `import Foundation`):
+- [x] K1.1 Tests first (`TOCTests.swift`, no `import Foundation`):
   - `0` → `0`; `7` → `7`; `-1` → `nil`
   - throws `TOCError`: `-2`; `1.5`; `"1"`; `nil`; `[1]`; `["i": 1]`; `true` (Swift `Bool`)
-- [ ] K1.2 Implement: CF Boolean check first, then `as? Int` (`Double` 1.5 fails the cast). Test files avoid `import Foundation`, so the bridged-`NSNumber` Bool case is checked in I13 (harness posts `true` through `postMessage` once → `tocMessage` logs a `TOCError`, `current` unchanged)
+- [x] K1.2 Implement: CF Boolean check first, then `as? Int` (`Double` 1.5 fails the cast). Test files avoid `import Foundation`, so the bridged-`NSNumber` Bool case is checked in I13 (harness posts `true` through `postMessage` once → `tocMessage` logs a `TOCError`, `current` unchanged)
 
 ### K2 — toc.js spy (builder)
 
-- [ ] K2.1 Node tests first (`toc.test.mjs`, same `createRequire`):
+- [x] K2.1 Node tests first (`toc.test.mjs`, same `createRequire`):
   - `tocCurrent` with `atEnd: false`, `height: 700` (tops listed): `[]` → `-1`; `[20, 500]` → `-1`; `[8, 500]` → `0` (edge inclusive); `[9]` → `-1`; `[-300, 5, 400]` → `1`; `[-900, -300, -10]` → `2`; `[0, 0]` → `1` (last match wins); custom edge `([30], 40)` → `0`
   - bottom rule, `atEnd: true`, `height: 700`: `[-500, 300, 600]` → `2`; `[-500, 800]` → `0` (800 is below the viewport); `[-500, 700]` → `0` (`top < height`, strict); `[]` → `-1`; `[20, 300]` → `1` (no heading at the edge, still the last visible)
   - `tocSpy`: first `update()` posts even `-1`; same reading again → no post; tops change the answer → one post; tops change but answer same → no post; `reset()` with unchanged tops → posts again; posts are integers
   - existing S10 tests unchanged and green
-- [ ] K2.2 Implement pure functions; app-world wiring (`html` = `document.documentElement`): `const spy = tocSpy(() => ({ tops: [...content().querySelectorAll(TOC_SELECTOR)].map((h) => h.getBoundingClientRect().top), height: innerHeight, atEnd: html.scrollHeight > innerHeight && scrollY + innerHeight >= html.scrollHeight - 1 }), (i) => window.webkit?.messageHandlers?.toc?.postMessage(i))`; rAF gate; `addEventListener("scroll", gate, {passive: true})`; `addEventListener("resize", gate, {passive: true})`; `new ResizeObserver(gate).observe(content())`; `Marked.hook("position", function tocSpyReset() { spy.reset() })`; `ponytail:` cost comment
-- [ ] K2.3 `node --test 'Tests/js/*.test.mjs'` green
+- [x] K2.2 Implement pure functions; app-world wiring (`html` = `document.documentElement`): `const spy = tocSpy(() => ({ tops: [...content().querySelectorAll(TOC_SELECTOR)].map((h) => h.getBoundingClientRect().top), height: innerHeight, atEnd: html.scrollHeight > innerHeight && scrollY + innerHeight >= html.scrollHeight - 1 }), (i) => window.webkit?.messageHandlers?.toc?.postMessage(i))`; rAF gate; `addEventListener("scroll", gate, {passive: true})`; `addEventListener("resize", gate, {passive: true})`; `new ResizeObserver(gate).observe(content())`; `Marked.hook("position", function tocSpyReset() { spy.reset() })`; `ponytail:` cost comment
+- [x] K2.3 `node --test 'Tests/js/*.test.mjs'` green
 
 ### K3 — app (builder)
 
-- [ ] K3.1 `TOCController.mark` sets `current`. `TOCSidebar`: `ScrollViewReader`, `.id(i)` per row, current-row look, `reveal` from both `onChange`s per "Own decisions"; mark only when `i < entries.count`
-- [ ] K3.2 `TOCMessages.userContentController(_:didReceive:)` → `coordinator?.tocMessage(message.body)`; `Coordinator.tocMessage` per "Own decisions". No change to `refreshTOC`, `go`, the ready gate, or `decidePolicyFor`
-- [ ] K3.3 `make app` builds, no warnings; `make test` green
+- [x] K3.1 `TOCController.mark` sets `current`. `TOCSidebar`: `ScrollViewReader`, `.id(i)` per row, current-row look, `reveal` from both `onChange`s per "Own decisions"; mark only when `i < entries.count`
+- [x] K3.2 `TOCMessages.userContentController(_:didReceive:)` → `coordinator?.tocMessage(message.body)`; `Coordinator.tocMessage` per "Own decisions". No change to `refreshTOC`, `go`, the ready gate, or `decidePolicyFor`
+- [x] K3.3 `make app` builds, no warnings; `make test` green
 
 ### I13 — integrate + live check (sequential, main loop)
 
-- [ ] I13.1 Merge K1–K3; `make test`
-- [ ] I13.2 Fixture `spy dir/a.md` (space in path): `# One` at the top; `## Two` … `## Five` each after 40 filler paragraphs; `## Six` followed by 3 lines only (short last section); a Mermaid block between Three and Four; a second fixture with 80 `##` headings and 5 lines between each (sidebar keep-visible). Temporary env-guarded harness (not committed); it scrolls with `callAsyncJavaScript("window.scrollTo(0, y)")`, reads `TOCController.current`, counts `tocMessage` calls, and polls ≤ 500 ms per step:
+- [x] I13.1 Merge K1–K3; `make test`
+- [x] I13.2 (34/34 pass; see s13-review.md) Fixture `spy dir/a.md` (space in path): `# One` at the top; `## Two` … `## Five` each after 40 filler paragraphs; `## Six` followed by 3 lines only (short last section); a Mermaid block between Three and Four; a second fixture with 80 `##` headings and 5 lines between each (sidebar keep-visible). Temporary env-guarded harness (not committed); it scrolls with `callAsyncJavaScript("window.scrollTo(0, y)")`, reads `TOCController.current`, counts `tocMessage` calls, and polls ≤ 500 ms per step:
   - scrollY 0 → `current == nil` (`# One` sits at the `#content` padding, top ≈ 32 px > 8)
   - indexes: One 0, Two 1, Three 2, Four 3, Five 4, Six 5. Scroll so `## Three` top = 0 → `2`; its top = +20 px (below the edge) → `1`; scroll to the end (Six never reaches the edge) → `5` (bottom rule); 1 screen up from the end → `4`
   - `TOCController.go(4)` (click path) → `current == 4`; page `Marked.token` unchanged
@@ -121,7 +121,7 @@ final class TOCMessages: NSObject, WKScriptMessageHandler {   // weak var coordi
   - retain: harness keeps a `weak` ref to a window's coordinator, closes the window, spins the run loop 1 s → ref is `nil`
   - ≥ 2 s between launches; `--args -ApplePersistenceIgnoreState YES`; pick window by `webView.url?.path`; menu keys via `NSApp.mainMenu.performKeyEquivalent` (posted keys stall when the app is not frontmost, S10)
 - [ ] I13.3 Manual (person at the keyboard): trackpad-scroll a long doc with the sidebar open → mark follows smoothly, no flicker; click a row → jump + mark; sidebar does not fight a manual sidebar scroll while the page is still
-- [ ] I13.4 Remove harness (`git checkout Sources/Marked/AppDelegate.swift`, delete `Harness.swift`); code-reviewer loop until clean (max 5) → `design/s13-review.md`; tick S13 in `design.md`; commit on `s13-scrollspy`
+- [x] I13.4 Remove harness (`git checkout Sources/Marked/AppDelegate.swift`, delete `Harness.swift`); code-reviewer loop until clean (max 5) → `design/s13-review.md`; tick S13 in `design.md`; commit on `s13-scrollspy`
 
 ## Merge conflicts
 
