@@ -18,7 +18,7 @@ Native macOS markdown reader. Read-only. Live reload with scroll-to-change. Q&A 
   - Path ↔ URL in `MarkedCore/DocURL.swift`: percent-encode each path component (`.urlPathAllowed` minus `#?;`), decode on serve. Round-trip tests: spaces, `#`, `?`, `%`, non-ASCII. Encoding is S0 (shell URL needs it). S7 serve rule: decoded path → `resolvingSymlinksInPath()` → must be an existing regular file with an image extension (Security), else 403. `Content-Type` = `UTType(filenameExtension:)?.preferredMIMEType` (no hand map; checked on macOS 26: `svg` → `image/svg+xml`, `ico` → `image/vnd.microsoft.icon`, `css` → `text/css`); shell → `text/html; charset=utf-8`. `DocURL` test asserts `svg`, `png`, `css`
 - Page = shell HTML loaded once. Each content change → `Marked.render(html, changedLine)` via `callAsyncJavaScript`. No full reloads → no flicker, keep state
 - `Marked.render(html, changedLine)` pipeline: swap `#content` → `await` each registered hook with `{changedLine}`. Render itself does no scroll. Scroll + flash = S1 hook in `js/scroll.js`. Features register hooks; they never edit `marked.js`
-- Hook phases fixed in S0, run in order, hooks within a phase run in parallel: `transform` (S5 mermaid) → `decorate` (S3 find re-apply) → `position` (S1 scroll). `Marked.hook(phase, fn)`. Registration order is irrelevant
+- Hook phases fixed in S0, run in order, hooks within a phase run in parallel: `transform` (S5 mermaid, S8 highlight; they touch disjoint DOM: mermaid only `pre code.language-mermaid`, highlight never inside code) → `decorate` (S3 find re-apply) → `position` (S1 scroll). `Marked.hook(phase, fn)`. Registration order is irrelevant
 - Watcher: poll mtime+size every 0.5s on the `fileURL` from `documentConfiguration` (a `file://` URL, not `marked:`)
 - Styles: `mono`/`serif`/`sans` CSS (font, max width, line height). Cmd-1/2/3. Global, `@AppStorage`. Default `sans`. Style files set only `:root` variables (`--font`, `--measure`, `--leading`); `base.css` consumes them. Frontmatter rule in `base.css` sets its own monospace font and does not read the variables → no precedence fight. Swap = `Marked.setStyle(cssText)` replaces `<style id="style">` text; no reload
 - File errors (read/decode, S1): keep last good render, red banner, keep polling, auto-recover. Render errors: see Render lifecycle
@@ -63,7 +63,7 @@ Sources/Marked/          # app
 Resources/               # copied by `make app`, not a SwiftPM resource
   shell.html, base.css, marked.js
   styles/{mono,serif,sans}.css   # S2
-  js/{scroll,find,mermaid-hook,anchors}.js
+  js/{scroll,find,mermaid-hook,anchors,highlight}.js
   vendor/mermaid.min.js          # S5, pinned
 Tests/MarkedCoreTests/
 Scripts/Info.plist
@@ -71,7 +71,7 @@ Scripts/Info.plist
 
 ## Slices
 
-Sliced design: 8 slices. S0 first. S1–S7 run as parallel streams after S0, one subagent each. (S7 split out of S0 on 2026-10-09 to keep S0 at the scale ceiling.)
+Sliced design: 9 slices. S0 first. S1–S8 run as parallel streams after S0, one subagent each. (S7 split out of S0 on 2026-10-09 to keep S0 at the scale ceiling.)
 
 | # | Slice | Delivers (usable alone on top of S0) | Touches |
 |---|---|---|---|
@@ -83,8 +83,9 @@ Sliced design: 8 slices. S0 first. S1–S7 run as parallel streams after S0, one
 | S4 | Frontmatter | Line-1 `---` block → verbatim monospace block, any style | `Frontmatter`, `HTMLRenderer`, `base.css` |
 | S5 | Mermaid | ` ```mermaid ` → diagram. Bad diagram → error + source. Offline. Checks: flowchart arrowheads (`url(#marker)`) render; fixture with one good, one syntax-bad, one render-bad diagram → good renders, both bad show source + error, later phases still run | `vendor/mermaid.min.js`, `js/mermaid-hook.js`, `WebView` |
 | S6 | Links | Web link → browser. `.md` link → new window. `#anchor` → in-page | `WebView` coordinator (nav delegate), `js/anchors.js` |
+| S8 | Highlight | `==text==` outside code → `<mark>text</mark>`. Literal inside `pre`, `code`, `kbd`, `samp` (Marked 2 bug, D23). Needs S1 (node test target, `requiredResource(subdirectory:)`) | `js/highlight.js`, `Tests/js/highlight.test.mjs`, `WebView.userScripts` (one line) |
 
-Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6. After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialization), and JS world; no slice edits another slice's behavior. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
+Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6 → S8 (S8 can start any time after S1). After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialization), and JS world; no slice edits another slice's behavior. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
 
 ### Module seams (why parallel works)
 
@@ -94,6 +95,15 @@ Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6. Aft
 - Frontmatter trick: replace frontmatter lines with blank lines before cmark → cmark sourcepos stays absolute → S1 scroll needs no frontmatter knowledge. Prepend `<pre class="frontmatter" data-sourcepos="1:1-N:1">`
 - Mermaid: cmark emits `<pre data-sourcepos><code class="language-mermaid">`; JS hook replaces it with `<div class="mermaid" data-sourcepos=…>` (copies the attribute) holding the SVG. Per node, sequentially: `try { const {svg} = await mermaid.render(uniqueId, src); wrapper.innerHTML = svg } catch (e) { keep <pre> source + error note }`. Covers parse and layout/SVG failures alike; hook never rejects; one diagram at a time (no shared temp-id clash). No `mermaid.run`. S5 confirms behavior on the pinned version No Swift renderer change → no S4 conflict
 - Find skips text inside mermaid `<svg>`
+- Find (S3) must match across inline element boundaries (`<em>`, `<strong>`, S8 `<mark>`), since highlight splits text nodes
+
+### S8 highlight rules (tested in `Tests/js/highlight.test.mjs`)
+
+- JS `transform` hook, post-render DOM walk over text nodes of `#content`; skip any node inside `pre`, `code`, `kbd`, `samp`, `div.mermaid`
+- Pure `splitHighlights(text) -> [{text, mark}]`: `==` + non-space … non-space + `==`, shortest match, same text node only; `====` and `== x ==` stay literal
+- Build `<mark>` with `textContent` (no HTML injection)
+- Deferred edge cases: a highlight spanning inline markup (`==a *b* c==`); backslash-escaped `\==` (cmark drops the backslash before JS sees the text)
+- Swift `HTMLRendererTests` keep pinning literal `==` in code at the renderer level; the JS test pins it at the DOM level
 
 ### S6 navigation rules (`decidePolicyFor navigationAction`)
 
@@ -117,7 +127,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 ## Merge conflicts (named, accepted)
 
 - C1 `MarkedApp.commands`: S2 + S3 both add menu items
-- C2 `WebView.userScripts` list: S1, S3, S5, S6 each append a line
+- C2 `WebView.userScripts` list: S1, S3, S5, S6, S8 each append a line
 - C3 `WebView` coordinator: S2 style injection, S3 find bridge, S6 extends S0's `decidePolicyFor` (S1 no longer touches it: render dispatch is S0)
 - C4 `ReaderView`: S1 adds banner, S3 adds find bar
 
@@ -133,7 +143,6 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 ## Deferred (not in any slice)
 
-- `==highlight==` (`<mark>`) outside code: not supported; if added, never inside code blocks or inline code (see Decisions)
 - Syntax highlight in code blocks, dark mode, TOC, print/export, TOML `+++`, large-file perf
 
 ## Rejected
