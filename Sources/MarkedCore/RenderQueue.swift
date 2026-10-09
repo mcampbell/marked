@@ -2,7 +2,7 @@
 public final class RenderQueue {
     public var changedLine: (String, String) -> Int? = { _, _ in nil }
     public var onFailure: (Error) -> Void = { _ in }
-    /// S2 style seam (W2 stubs).
+    /// Style seam: sent before renders through the same in-flight slot.
     public var sendStyle: (String) async throws -> Void = { _ in }
     public var onStyleApplied: () -> Void = {}
     public var onStyleFailure: (Error) -> Void = { _ in }

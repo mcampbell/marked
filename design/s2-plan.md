@@ -71,17 +71,17 @@ public func setStyle(_ css: String)
 
 ### Y1 — Style enum (builder)
 
-- [ ] Y1.1 Tests first (no `import Foundation`): `allCases == [.mono, .serif, .sans]`; shortcuts `"1"`, `"2"`, `"3"` in that order and unique; titles; resources match raw values; `default == .sans`; `init(stored: "serif") == .serif`; `init(stored: nil)` and `init(stored: "bogus")` → `.sans`
-- [ ] Y1.2 Implement
+- [x] Y1.1 Tests first (no `import Foundation`): `allCases == [.mono, .serif, .sans]`; shortcuts `"1"`, `"2"`, `"3"` in that order and unique; titles; resources match raw values; `default == .sans`; `init(stored: "serif") == .serif`; `init(stored: nil)` and `init(stored: "bogus")` → `.sans`
+- [x] Y1.2 Implement
 
 ### Y2 — CSS files (builder)
 
-- [ ] Y2.1 Node test first (`Tests/js/styles.test.mjs`, `node:fs` + `node:assert`): for each of `mono`, `serif`, `sans`: the file is exactly one `:root { … }` rule (no other selectors); it defines `--font`, `--measure`, `--leading` and nothing else; `mono`'s `--font` starts with `ui-monospace`; `serif`'s contains `serif`; `sans`' values equal the `:root` defaults in `base.css` (so first paint and the sans file never disagree)
-- [ ] Y2.2 Write the three files with the values in "Own decisions"
+- [x] Y2.1 Node test first (`Tests/js/styles.test.mjs`, `node:fs` + `node:assert`): for each of `mono`, `serif`, `sans`: the file is exactly one `:root { … }` rule (no other selectors); it defines `--font`, `--measure`, `--leading` and nothing else; `mono`'s `--font` starts with `ui-monospace`; `serif`'s contains `serif`; `sans`' values equal the `:root` defaults in `base.css` (so first paint and the sans file never disagree)
+- [x] Y2.2 Write the three files with the values in "Own decisions"
 
 ### Y3 — RenderQueue style seam (builder)
 
-- [ ] Y3.1 Tests first (extend `RenderQueueTests`, reuse its suspendable fakes; add a fake `sendStyle` that records and suspends):
+- [x] Y3.1 Tests first (extend `RenderQueueTests`, reuse its suspendable fakes; add a fake `sendStyle` that records and suspends):
   - `setStyle` before ready → no `sendStyle`; `markReady` with pending style + pending render → style sent, render **not** sent until the style send completes; then render sent (record order)
   - submit while the initial style send is suspended → still no render; resume style → exactly one render with the latest source
   - `setStyle` twice before ready → only the latest sent
@@ -93,26 +93,26 @@ public func setStyle(_ css: String)
   - newer request survives a successful send: send A (suspended), `setStyle(B)`, A succeeds → B is sent next
   - success → `onStyleApplied` called once
   - no style ever set → `markReady` sends no style; existing render tests stay green
-- [ ] Y3.2 Implement in `RenderQueue`: `currentStyle: String?` (latest requested) and `pendingStyle: String?` (not yet applied in this generation). `setStyle(css)`: set both, `pump()`. `pump()`: guard `ready`, nothing in flight; if `pendingStyle` → dispatch it (on completion, success **or failure**, clear `pendingStyle` only if it still equals the CSS that was sent, so a newer request made during the send is kept and dispatched next; on failure also call `onStyleFailure` — no retry of the failed CSS itself); else dispatch the pending render as today. Both kinds capture `generation`; stale completions return before touching any state or calling any callback. `shellWillReload` also sets `pendingStyle = currentStyle`
+- [x] Y3.2 Implement in `RenderQueue`: `currentStyle: String?` (latest requested) and `pendingStyle: String?` (not yet applied in this generation). `setStyle(css)`: set both, `pump()`. `pump()`: guard `ready`, nothing in flight; if `pendingStyle` → dispatch it (on completion, success **or failure**, clear `pendingStyle` only if it still equals the CSS that was sent, so a newer request made during the send is kept and dispatched next; on failure also call `onStyleFailure` — no retry of the failed CSS itself); else dispatch the pending render as today. Both kinds capture `generation`; stale completions return before touching any state or calling any callback. `shellWillReload` also sets `pendingStyle = currentStyle`
 
 ### Y4 — app wiring (builder)
 
-- [ ] Y4.1 `MarkedApp`: `@AppStorage("style") private var stored = Style.default.rawValue`; `.commands { CommandGroup(after: .toolbar) { ForEach(Style.allCases, id: \.self) { s in Toggle(s.title, isOn: Binding(get: { Style(stored: stored) == s }, set: { if $0 { stored = s.rawValue } })).keyboardShortcut(KeyEquivalent(s.shortcut)) } } }`
-- [ ] Y4.2 `ReaderView`: `@AppStorage("style")`; pass `Style(stored:)` into `WebView`. Add `@State styleFailure: String?` beside the existing `failure`; subtitle shows "Render failed: …" and/or "Style failed: …" (both when both are set)
-- [ ] Y4.3 `WebView`: `let style: Style`; coordinator sets `queue.sendStyle` = `callAsyncJavaScript("Marked.setStyle(css)", arguments: ["css": …], in: nil, contentWorld: .defaultClient)`; in `makeNSView` and `updateNSView`, call `coordinator.apply(style)` → when the style differs from the last applied one, read `Resources/styles/<resource>.css` (`resource(_:_:subdirectory: "styles")`) and `queue.setStyle(css)`. The coordinator caches the last **requested** style only to skip re-reading the same file; retry after a failure is the queue's job (next `setStyle` or reload). Wire `queue.onStyleFailure` → log + `setStyleFailure("\(err)")`, `queue.onStyleApplied` → `setStyleFailure(nil)`. The existing render-success `setFailure(nil)` stays, and clears only the render failure
-- [ ] Y4.4 `make app` builds with no warnings in owned files; `make test` stays green
+- [x] Y4.1 `MarkedApp`: `@AppStorage("style") private var stored = Style.default.rawValue`; `.commands { CommandGroup(after: .toolbar) { ForEach(Style.allCases, id: \.self) { s in Toggle(s.title, isOn: Binding(get: { Style(stored: stored) == s }, set: { if $0 { stored = s.rawValue } })).keyboardShortcut(KeyEquivalent(s.shortcut)) } } }`
+- [x] Y4.2 `ReaderView`: `@AppStorage("style")`; pass `Style(stored:)` into `WebView`. Add `@State styleFailure: String?` beside the existing `failure`; subtitle shows "Render failed: …" and/or "Style failed: …" (both when both are set)
+- [x] Y4.3 `WebView`: `let style: Style`; coordinator sets `queue.sendStyle` = `callAsyncJavaScript("Marked.setStyle(css)", arguments: ["css": …], in: nil, contentWorld: .defaultClient)`; in `makeNSView` and `updateNSView`, call `coordinator.apply(style)` → when the style differs from the last applied one, read `Resources/styles/<resource>.css` (`resource(_:_:subdirectory: "styles")`) and `queue.setStyle(css)`. The coordinator caches the last **requested** style only to skip re-reading the same file; retry after a failure is the queue's job (next `setStyle` or reload). Wire `queue.onStyleFailure` → log + `setStyleFailure("\(err)")`, `queue.onStyleApplied` → `setStyleFailure(nil)`. The existing render-success `setFailure(nil)` stays, and clears only the render failure
+- [x] Y4.4 `make app` builds with no warnings in owned files; `make test` stays green
 
 ### I2 — integrate + live check (sequential, main loop)
 
-- [ ] I2.1 Merge Y1–Y4 (copy files); `make test` (Swift + JS); `make install`
-- [ ] I2.2 Temporary env-guarded harness (not committed), fixture with frontmatter, a code block, and 40 paragraphs:
+- [x] I2.1 Merge Y1–Y4 (copy files); `make test` (Swift + JS); `make install`
+- [x] I2.2 (2026-10-09: no value → sans; `-style serif` → New York; two windows → both mono, same token, y 600 kept; relaunch → mono; forced failure → styleFailed survives a render, clears on next applied style; code + frontmatter monospace throughout) Temporary env-guarded harness (not committed), fixture with frontmatter, a code block, and 40 paragraphs:
   - launch with `-style serif` (UserDefaults argument domain) → body `font-family` starts with `"New York"`; `pre.frontmatter` and `pre` stay `ui-monospace`
   - launch with no stored value (`defaults delete com.example.Marked style`) → sans
   - with two windows open, the harness sets `UserDefaults.standard.set("mono", forKey: "style")` → both windows switch to `ui-monospace` within 1s; `Marked.token` unchanged (no reload); `scrollY` > 0 kept after scrolling down first
   - relaunch → mono restored
   - style failure path (harness forces `sendStyle` to throw once): subtitle shows "Style failed", stays after the next successful render, clears after the next successful style send
-- [ ] I2.3 Manual (needs a person at the keyboard; cannot be scripted without Accessibility permission): Cmd-1/2/3 switch styles; the View menu shows the check on the current style
-- [ ] I2.4 code-reviewer loop until clean (max 5); commit on `s2-styles`; tick S2 in `design.md`
+- [ ] I2.3 (pending: user) Manual (needs a person at the keyboard; cannot be scripted without Accessibility permission): Cmd-1/2/3 switch styles; the View menu shows the check on the current style
+- [x] I2.4 code-reviewer loop (clean at round 2, see `s2-review.md`) until clean (max 5); commit on `s2-styles`; tick S2 in `design.md`
 
 ## Merge conflicts
 

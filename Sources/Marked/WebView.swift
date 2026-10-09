@@ -59,9 +59,10 @@ struct WebView: NSViewRepresentable {
         private var shell: URL?
 
         func apply(_ style: Style) {
-            guard style != lastStyle else { return }
+            // Remember the style only once the queue exists, so an early call cannot mark it as requested.
+            guard let queue, style != lastStyle else { return }
             lastStyle = style
-            queue?.setStyle(WebView.resource(style.resource, "css", subdirectory: "styles"))
+            queue.setStyle(WebView.resource(style.resource, "css", subdirectory: "styles"))
         }
 
         func stop() { watcher?.stop() }
