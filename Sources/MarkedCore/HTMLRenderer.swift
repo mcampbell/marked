@@ -4,6 +4,16 @@ import cmark_gfm_extensions
 
 public enum HTMLRenderer {
     public static func render(_ source: String) -> String {
+        guard let (fm, body) = FrontmatterSplit.split(source) else { return cmark(source) }
+        return "<pre class=\"frontmatter\" data-sourcepos=\"1:1-\(fm.endLine):3\"><code>\(escape(fm.text))</code></pre>\n" + cmark(body)
+    }
+
+    private static func escape(_ s: String) -> String {
+        s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
+    }
+
+    private static func cmark(_ source: String) -> String {
         cmark_gfm_core_extensions_ensure_registered()
         // NOBREAKS: a soft line break renders as a space, so wrapped text is identical to one line (and find matches across it).
         let options = CMARK_OPT_SOURCEPOS | CMARK_OPT_UNSAFE | CMARK_OPT_NOBREAKS

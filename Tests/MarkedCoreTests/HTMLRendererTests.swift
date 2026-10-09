@@ -1,6 +1,35 @@
 import Testing
 @testable import MarkedCore
 
+// Frontmatter (S4)
+@Test func frontmatterBlock() {
+    let h = HTMLRenderer.render("---\ntitle: x\n---\n# H")
+    #expect(h.hasPrefix("<pre class=\"frontmatter\" data-sourcepos=\"1:1-3:3\"><code>---\ntitle: x\n---</code></pre>"))
+    #expect(h.contains("data-sourcepos=\"4:1-4:3\""))
+}
+@Test func frontmatterEscapes() {
+    let h = HTMLRenderer.render("---\na: <b> & \"c\"\n---\n")
+    #expect(h.contains("a: &lt;b&gt; &amp; &quot;c&quot;"))
+}
+@Test func frontmatterUnclosed() {
+    let h = HTMLRenderer.render("---\na: 1\n# H")
+    #expect(!h.contains("class=\"frontmatter\""))
+    #expect(h.contains("<hr"))
+}
+@Test func frontmatterEmpty() {
+    let h = HTMLRenderer.render("---\n---\n# H")
+    #expect(h.hasPrefix("<pre class=\"frontmatter\" data-sourcepos=\"1:1-2:3\"><code>---\n---</code></pre>"))
+    #expect(h.contains("data-sourcepos=\"3:1-3:3\""))
+}
+@Test func frontmatterNotOnLine1() {
+    #expect(!HTMLRenderer.render("a\n\n---\nb\n").contains("class=\"frontmatter\""))
+}
+@Test func frontmatterCRLF() {
+    let h = HTMLRenderer.render("---\r\ntitle: x\r\n---\r\n# H\r\n")
+    #expect(h.contains("<code>---\ntitle: x\n---</code>"))
+    #expect(h.contains("data-sourcepos=\"4:1-4:3\""))
+}
+
 @Test func headingSourcepos() {
     #expect(HTMLRenderer.render("# Hi").contains("data-sourcepos=\"1:1-1:4\""))
 }
