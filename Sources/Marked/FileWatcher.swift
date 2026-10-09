@@ -25,15 +25,35 @@ final class FileWatcher {
         self.onEvent = onEvent
     }
 
-    /// W1 stub: one real read, no polling (keeps S0 behavior until Q2 lands).
+    private var timer: Timer?
+    private var state = WatchState()
+
     func start() {
-        switch Self.read(url) {
-        case .success(let text): onEvent(.text(text))
-        case .failure(let e): onEvent(.error(e.description))
+        tick()
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
         }
     }
 
-    func stop() {}
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func tick() {
+        let url = url
+        let probe: Probe
+        if let a = try? FileManager.default.attributesOfItem(atPath: url.path) {
+            probe = .present(Stamp(
+                mtime: (a[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0,
+                size: (a[.size] as? NSNumber)?.intValue ?? 0))
+        } else {
+            probe = .missing
+        }
+        for e in state.step(probe, read: {
+            Self.read(url).mapError { ReadFailure(message: $0.description) }
+        }) { onEvent(e) }
+    }
 
     static func read(_ url: URL) -> Result<String, ReadError> {
         let data: Data

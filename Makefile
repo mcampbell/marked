@@ -13,7 +13,7 @@ build:
 test:
 	swift test $(TESTFLAGS)
 	@if [ ! -d Tests/js ]; then echo "no JS tests"; \
-	elif command -v node >/dev/null; then node --test Tests/js; \
+	elif command -v node >/dev/null; then node --test 'Tests/js/*.test.mjs'; \
 	else echo "node not found, JS tests skipped"; fi
 
 app: build

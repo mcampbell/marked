@@ -25,9 +25,38 @@ public struct ReadFailure: Error, Equatable {
 }
 
 public struct WatchState {
+    private var lastStamp: Stamp?
+    private var lastText: String?
+    private var showingError: String?
+    private var missing = 0
+
     public init() {}
 
     public mutating func step(_ probe: Probe, read: () -> Result<String, ReadFailure>) -> [WatchEvent] {
-        []
+        switch probe {
+        case .missing:
+            lastStamp = nil
+            missing += 1
+            return missing >= 2 ? fail("File not found") : []
+        case .present(let stamp):
+            missing = 0
+            guard stamp != lastStamp || showingError != nil else { return [] }
+            lastStamp = stamp
+            switch read() {
+            case .failure(let e):
+                return fail(e.message)
+            case .success(let text):
+                var events: [WatchEvent] = []
+                if showingError != nil { showingError = nil; events.append(.cleared) }
+                if text != lastText { lastText = text; events.append(.text(text)) }
+                return events
+            }
+        }
+    }
+
+    private mutating func fail(_ msg: String) -> [WatchEvent] {
+        guard msg != showingError else { return [] }
+        showingError = msg
+        return [.error(msg)]
     }
 }
