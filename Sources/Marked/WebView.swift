@@ -8,6 +8,7 @@ struct WebView: NSViewRepresentable {
     @Binding var failure: String?
     @Binding var styleFailure: String?
     @Binding var banner: String?
+    let find: FindSession
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 

@@ -7,10 +7,11 @@ struct ReaderView: View {
     @State private var styleFailure: String?
     @State private var banner: String?
     @AppStorage("style") private var stored = Style.default.rawValue
+    @StateObject private var find = FindController(session: FindSession())
 
     var body: some View {
         WebView(fileURL: config?.fileURL, style: Style(stored: stored),
-                failure: $failure, styleFailure: $styleFailure, banner: $banner)
+                failure: $failure, styleFailure: $styleFailure, banner: $banner, find: find.session)
             .safeAreaInset(edge: .top, spacing: 0) {
                 if let banner {
                     Text(banner).frame(maxWidth: .infinity, alignment: .leading)
