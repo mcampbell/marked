@@ -61,9 +61,9 @@ var performLink: (LinkAction) -> Void        // default: the effects in "Own dec
 
 ### W6 — stubs (sequential, main loop)
 
-- [ ] W6.1 Branch `s6-links` from `s5-mermaid`
-- [ ] W6.2 `LinkPolicy` stub keeping today's behavior (shell match → `.allow`, else `.cancel`); `decidePolicyFor` → `let a = LinkPolicy.decide(url, shell: shell, linkActivated: action.navigationType == .linkActivated)`; `if a != .allow && a != .cancel { performLink(a) }`; `decisionHandler(a == .allow ? .allow : .cancel)`; `performLink` default no-op. `anchors.js` stub (`slugger` returns the text unchanged, no hook); append `resource("anchors", "js", subdirectory: "js")` to `userScripts`
-- [ ] W6.3 `make test` + `make app` green; app still renders (open one fixture) → commit → fork worktrees
+- [x] W6.1 Branch `s6-links` from `s5-mermaid`
+- [x] W6.2 `LinkPolicy` stub keeping today's behavior (shell match → `.allow`, else `.cancel`); `decidePolicyFor` → `let a = LinkPolicy.decide(url, shell: shell, linkActivated: action.navigationType == .linkActivated)`; `if a != .allow && a != .cancel { performLink(a) }`; `decisionHandler(a == .allow ? .allow : .cancel)`; `performLink` default no-op. `anchors.js` stub (`slugger` returns the text unchanged, no hook); append `resource("anchors", "js", subdirectory: "js")` to `userScripts`
+- [x] W6.3 (render check folded into I6: the stub repeats S0's exact shell-match logic) `make test` + `make app` green; app still renders (open one fixture) → commit → fork worktrees
 
 ### K1 — LinkPolicy (builder)
 

@@ -24,7 +24,8 @@ struct WebView: NSViewRepresentable {
         let scripts: [String] = [Self.resource("marked", "js"), Self.resource("scroll", "js", subdirectory: "js"),
                                  Self.resource("find", "js", subdirectory: "js"),
                                  Self.resource("mermaid.min", "js", subdirectory: "vendor"),
-                                 Self.resource("mermaid-hook", "js", subdirectory: "js")]
+                                 Self.resource("mermaid-hook", "js", subdirectory: "js"),
+                                 Self.resource("anchors", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))
@@ -78,6 +79,8 @@ struct WebView: NSViewRepresentable {
         private var hasRendered = false
         private var shell: URL?
         weak var findController: FindController?
+        /// Runs the side effect of a link click. A seam so a live check can record instead of open.
+        var performLink: (LinkAction) -> Void = { _ in }
 
         func apply(_ style: Style) {
             // Remember the style only once the queue exists, so an early call cannot mark it as requested.
@@ -175,9 +178,9 @@ struct WebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             guard let url = action.request.url, let shell else { return decisionHandler(.cancel) }
-            var bare = URLComponents(url: url, resolvingAgainstBaseURL: false)
-            bare?.fragment = nil
-            decisionHandler(bare?.url == shell ? .allow : .cancel)
+            let a = LinkPolicy.decide(url, shell: shell, linkActivated: action.navigationType == .linkActivated)
+            if a != .allow && a != .cancel { performLink(a) }
+            decisionHandler(a == .allow ? .allow : .cancel)
         }
     }
 }
