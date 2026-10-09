@@ -125,8 +125,10 @@ public enum FindCommand: Equatable, Sendable { case set(String), next, previous,
 - S2 is already merged, so C1 (`MarkedApp.commands`), C3 (`WebView`), and C4 (`ReaderView`) are plain sequential edits on this branch, not conflicts
 - C2 `userScripts`: one line in W3
 
-## Unresolved questions
+## Resolved questions (user, 2026-10-09)
 
-1. Case-insensitive only, no options (Q6 named none) — OK?
-2. Frontmatter text searchable — OK?
-3. Find bar above the error banner when both show — OK?
+1. Case-insensitive only, no options: yes
+2. Frontmatter text searchable: yes
+3. Find bar above the error banner when both show: yes
+
+No open questions.
