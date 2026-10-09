@@ -51,3 +51,8 @@ private func withoutSourcepos(_ html: String) -> String {
 @Test func blankLineStillSplitsParagraphs() {
     #expect(HTMLRenderer.render("a\n\nb\n").components(separatedBy: "<p").count == 3)
 }
+// Hard breaks (two trailing spaces or a trailing backslash) stay forced line breaks, per CommonMark.
+@Test func hardBreaksStayLineBreaks() {
+    #expect(HTMLRenderer.render("one  \ntwo\n").contains("one<br />\ntwo"))
+    #expect(HTMLRenderer.render("one\\\ntwo\n").contains("one<br />\ntwo"))
+}
