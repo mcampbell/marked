@@ -39,3 +39,4 @@
 - D24 (user wants `==text==` highlight outside code eventually; author decision) New slice S8: JS `transform` hook, never inside code; no Swift renderer change (avoids S4 conflict); depends only on S0
 - D25 (user) S7: add image cache-busting (`?v=<mtime>` via `ImageStamp`, mtime not per-render to avoid flicker); `file://` images stay blocked. Image-only edits without a `.md` change deferred
 - D26 (user) Text wrapped across lines with no blank line renders the same as one line. `CMARK_OPT_NOBREAKS` (soft break → space, identical HTML, find works across it). Pinned by HTMLRendererTests
+- D27 (user) Frontmatter block shows both fences (`---` … `---`/`...`); `---` anywhere other than line 1 is normal markdown
