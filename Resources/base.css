@@ -3,6 +3,8 @@ body { font-family: var(--font); line-height: var(--leading); margin: 0 }
 #content { max-width: var(--measure); margin: 0 auto; padding: 2em 1.5em }
 pre, code { font-family: ui-monospace, Menlo, monospace }
 pre { overflow: auto; background: #f4f4f4; padding: .75em }
+/* Beats hljs.css by link order (same specificity). */
+pre code.hljs { background: none; padding: 0 }
 table { border-collapse: collapse }
 th, td { border: 1px solid #ccc; padding: .3em .6em }
 .render-error { border: 2px solid #c00; color: #c00; background: #fee; padding: .5em; margin-bottom: 1em }

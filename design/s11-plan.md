@@ -63,28 +63,29 @@ pre code.hljs { background: none; padding: 0 }
 
 ### W11 — vendor, stubs, route (sequential, main loop)
 
-- [ ] W11.1 Branch `s11-syntax` from `s10-s13-design`
-- [ ] W11.2 Vendor: `npm pack @highlightjs/cdn-assets@11.12.0` in a new empty scratch dir, `tar -xzf`, copy `package/highlight.min.js`, `package/styles/github.min.css` → `hljs-github.css`, `package/LICENSE` → `highlight.LICENSE`; append the two `VERSION` lines with sha256 of the copied files
-- [ ] W11.3 Tests first (`DocURLTests`): `appFile` for `marked://app/base.css` → base; `/hljs.css` → vendor `hljs-github.css`; `/other.css`, `/vendor/hljs-github.css`, `/js/syntax.js`, `/`, `marked://doc/…/base.css` → `nil`. Implement `appFile`; switch `SchemeHandler` to it
-- [ ] W11.4 Node load check: `node -e` with `createRequire` on the vendor file → `typeof hljs.highlight === "function"` and `hljs.getLanguage("swift")` truthy. Record which load path works (see "Node test loads the real bundle")
-- [ ] W11.5 Stub `syntax.js`: `codeLangOf` / `syntaxHTML` return `null`, no hook; `shell.html` `<link rel="stylesheet" href="marked://app/hljs.css">` before the `base.css` link; `base.css` rule; append both `userScripts` lines
-- [ ] W11.6 Global-name check in the running app (temporary env-guarded harness, not committed): from `.defaultClient`, `typeof hljs.highlight === "function"`, `typeof Marked.render === "function"`, `typeof splitHighlights === "function"`, `typeof renderAll === "function"`; `document.styleSheets` includes `marked://app/hljs.css`. Also time the script start with vs without the vendor line (3 launches each, as S5 W5.4 f); record the numbers
-- [ ] W11.7 `make test` + `make app` green → commit
+- [x] W11.1 Branch `s11-syntax` from `s10-s13-design`
+- [x] W11.2 Vendor: `npm pack @highlightjs/cdn-assets@11.12.0` in a new empty scratch dir, `tar -xzf`, copy `package/highlight.min.js`, `package/styles/github.min.css` → `hljs-github.css`, `package/LICENSE` → `highlight.LICENSE`; append the two `VERSION` lines with sha256 of the copied files
+- [x] W11.3 Tests first (`DocURLTests`): `appFile` for `marked://app/base.css` → base; `/hljs.css` → vendor `hljs-github.css`; `/other.css`, `/vendor/hljs-github.css`, `/js/syntax.js`, `/`, `marked://doc/…/base.css` → `nil`. Implement `appFile`; switch `SchemeHandler` to it
+- [x] W11.4 Node load check: `node -e` with `createRequire` on the vendor file → `typeof hljs.highlight === "function"` and `hljs.getLanguage("swift")` truthy. Record which load path works (see "Node test loads the real bundle")
+- [x] W11.5 Stub `syntax.js`: `codeLangOf` / `syntaxHTML` return `null`, no hook; `shell.html` `<link rel="stylesheet" href="marked://app/hljs.css">` before the `base.css` link; `base.css` rule; append both `userScripts` lines
+- [x] W11.6 Global-name check in the running app (temporary env-guarded harness, not committed): from `.defaultClient`, `typeof hljs.highlight === "function"`, `typeof Marked.render === "function"`, `typeof splitHighlights === "function"`, `typeof renderAll === "function"`; `document.styleSheets` includes `marked://app/hljs.css`. Also time the script start with vs without the vendor line (3 launches each, as S5 W5.4 f); record the numbers
+- [x] W11.7 `make test` + `make app` green → commit
 
 ### K1 — syntax.js (builder)
 
-- [ ] K1.1 Node tests first (`Tests/js/syntax.test.mjs`, real vendored `hljs`):
+- [x] K1.1 Node tests first (`Tests/js/syntax.test.mjs`, real vendored `hljs`):
   - `codeLangOf`: `"language-swift"` → `swift`; `"language-JS"` → `js`; `"foo language-ts bar"` → `ts`; `"language-a language-b"` → `a`; `""`, `"lang-x"`, `"xlanguage-y"` → `null`
   - `syntaxHTML`: `language-swift` `let x = 1` → contains `hljs-keyword`, and the HTML with tags stripped and entities decoded equals the input; alias `language-js` and `language-sh` → non-null; `language-mermaid` → `null`; `language-nosuchlang` → `null`; `""` → `null`
   - injection: `language-html` `<script>alert(1)</script><img src=x onerror=1>` → output has no `<script` and no `<img`; with `</?span[^>]*>` tags removed it has no `<` at all, and decoding entities gives back the input exactly (hljs splits `&lt;` from the tag name with a `hljs-name` span, so no `&lt;script` substring check); same text under `language-swift` (illegal input, `ignoreIllegals`) → escaped, no throw
-- [ ] K1.2 Implement `codeLangOf`, `syntaxHTML`
-- [ ] K1.3 DOM hook `colorCode` per "Own decisions"; register in `transform`; `ponytail:` cost comment
-- [ ] K1.4 `node --test 'Tests/js/*.test.mjs'` green
+- [x] K1.2 Implement `codeLangOf`, `syntaxHTML`
+- [x] K1.3 DOM hook `colorCode` per "Own decisions"; register in `transform`; `ponytail:` cost comment
+- [x] K1.4 `node --test 'Tests/js/*.test.mjs'` green
 
 ### I11 — integrate + live check (sequential, main loop)
 
-- [ ] I11.1 Merge K1; `make test`; `make install`
-- [ ] I11.2 Fixture: a ` ```swift ` fence with `let needle = 1`; ` ```JS ` (uppercase alias); ` ```sh `; ` ```nosuchlang `; an unlabeled fence; a ` ```mermaid ` flowchart; a ` ```html ` fence with `<script>alert(1)</script>` and `<img src=x onerror=1>`; inline `` `let x = 1` ``; 40 filler paragraphs before a last ` ```swift ` fence. Temporary env-guarded harness (not committed), `open -n … --args -ApplePersistenceIgnoreState YES`, ≥ 2 s between launches, window picked by `webView.url?.path`:
+- [x] I11.1 Merge K1; `make test`; `make install` (2026-10-09: K1 done in the main stream, no builder; `make install` skipped, siblings S10/S12 ran in parallel and share `~/Applications`; live check used the worktree `build/Marked.app`)
+  **Results (2026-10-09):** W11.4 `createRequire` works (bundle sets `module.exports`). W11.6 globals `hljs.highlight`, `Marked.render`, `splitHighlights`, `renderAll` all `function`; `hljs.css` in `document.styleSheets`. Script start 94/99/156 ms with vendor vs 125/135/125 ms without: no measurable cost, eager kept. I11.2 21/21 pass: 5 `code.hljs`; nosuchlang/unlabeled/inline plain; mermaid svg, no `.hljs`; no `script`/`img`; html text = source; sourcepos kept; `pre` bg `rgb(244, 244, 244)`, code bg transparent, pad `0px`; keyword `rgb(215, 58, 73)` = theme `#d73a49` (read from the bundled CSS: page `cssRules` on `marked://app` is cross-origin); mono/serif/sans (body font changed each time) same count + color; find `needle = 1` 1 of 1; reload keeps highlight, text = new source (`<b>&amp;</b>` not double-escaped), scroll lands on the fence; no `.render-error`. Style switched via the `style` `@AppStorage` key, not posted Cmd-1/2/3 (S2 covers the menu path)
+- [x] I11.2 Fixture: a ` ```swift ` fence with `let needle = 1`; ` ```JS ` (uppercase alias); ` ```sh `; ` ```nosuchlang `; an unlabeled fence; a ` ```mermaid ` flowchart; a ` ```html ` fence with `<script>alert(1)</script>` and `<img src=x onerror=1>`; inline `` `let x = 1` ``; 40 filler paragraphs before a last ` ```swift ` fence. Temporary env-guarded harness (not committed), `open -n … --args -ApplePersistenceIgnoreState YES`, ≥ 2 s between launches, window picked by `webView.url?.path`:
   - `code.hljs` count = 5 (swift, JS, sh, html, last swift); the `nosuchlang`, unlabeled, and inline code have no `.hljs` and no `span`
   - Mermaid fence → `div.mermaid` with `<svg>`, no `.hljs`
   - injection: no `script` or `img` element inside `#content`; the html fence's `textContent` equals its source
@@ -94,7 +95,7 @@ pre code.hljs { background: none; padding: 0 }
   - find `needle = 1` → `1 of 1` (crosses token spans)
   - live reload: change one line inside the last swift fence → still highlighted, its `textContent` equals the new source (no double escaping), scroll lands on that fence (S1)
   - result `{ok: true, errors: []}`, no `.render-error`
-- [ ] I11.3 code-reviewer + mc-code-security loop until clean (max 5) → `design/s11-review.md`; tick S11 in `design.md`; if S12 has landed, run R3 (print a highlighted fence to PDF → token colors + `pre` background show); commit on `s11-syntax`
+- [x] I11.3 code-reviewer + mc-code-security loop until clean (max 5) → `design/s11-review.md`; tick S11 in `design.md`; if S12 has landed, run R3 (print a highlighted fence to PDF → token colors + `pre` background show); commit on `s11-syntax` (2 rounds, clean. R3 not run: S12 had not landed on this base; whoever lands second runs it)
 
 ## Merge conflicts
 
@@ -109,5 +110,6 @@ pre code.hljs { background: none; padding: 0 }
 ## Unresolved questions
 
 None. Resolved 2026-10-09 (author, D46):
+
 1. ~~`DocURL.appFile` in `MarkedCore`?~~ Yes: pure + tested; design.md S11 touch list updated
 2. ~~Multi-line `VERSION` vs one per vendor?~~ One multi-line `VERSION` file
