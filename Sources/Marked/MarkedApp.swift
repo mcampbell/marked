@@ -21,7 +21,7 @@ struct MarkedApp: App {
     @AppStorage("style") private var stored = Style.default.rawValue
 
     init() {
-        // Ctrl-F -> Cmd-F via the main menu, so the focused scene's Find item handles it.
+        // Ctrl-F -> Cmd-F via the main menu: one Find path, and a SwiftUI menu item takes one shortcut.
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
             guard e.modifierFlags.intersection(.deviceIndependentFlagsMask) == .control,
                   e.charactersIgnoringModifiers == "f",

@@ -17,6 +17,16 @@ function step(index, count, dir) {
   return count ? (((index + dir) % count) + count) % count : -1;
 }
 
+// Offsets arrive in ascending order, so one forward pointer keeps the walk O(nodes + matches).
+// A start goes to the last node that begins at or before it; an end to the last node that begins before it.
+function locator(starts) {
+  let j = 0;
+  return (off, isEnd) => {
+    while (j + 1 < starts.length && (isEnd ? off > starts[j + 1] : off >= starts[j + 1])) j++;
+    return [j, off - starts[j]];
+  };
+}
+
 if (typeof Marked !== "undefined") {
   const SKIP = "div.mermaid, svg, script, style, .render-error";
   const BLOCKS = new Set(["P", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "PRE", "BLOCKQUOTE", "TD", "TH",
@@ -47,12 +57,10 @@ if (typeof Marked !== "undefined") {
       nodes.push({ node: n, start: text.length });
       text += n.data;
     }
-    // Start offsets belong to the node they begin in; end offsets to the node they end in.
+    const at = locator(nodes.map((n) => n.start));
     const locate = (off, isEnd) => {
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        const { node, start } = nodes[i];
-        if (isEnd ? off > start : off >= start) return [node, off - start];
-      }
+      const [j, o] = at(off, isEnd);
+      return [nodes[j].node, o];
     };
     return matchOffsets(text, query).map(([s, e]) => {
       const r = new Range();
@@ -122,4 +130,4 @@ if (typeof Marked !== "undefined") {
   });
 }
 
-if (typeof module !== "undefined") module.exports = { matchOffsets, step };
+if (typeof module !== "undefined") module.exports = { matchOffsets, step, locator };

@@ -75,7 +75,6 @@ struct WebView: NSViewRepresentable {
         private var watcher: FileWatcher?
         private var hasRendered = false
         private var shell: URL?
-        private var find: FindSession?
         weak var findController: FindController?
 
         func apply(_ style: Style) {
@@ -94,7 +93,6 @@ struct WebView: NSViewRepresentable {
         }
 
         func start(_ web: WKWebView, fileURL: URL?, find: FindSession) {
-            self.find = find
             find.send = { [weak web] cmd in
                 guard let web else { throw CocoaError(.userCancelled) }
                 let (js, args, name): (String, [String: Any], String) = switch cmd {
@@ -168,7 +166,7 @@ struct WebView: NSViewRepresentable {
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             queue?.shellWillReload()
-            find?.shellWillReload()
+            findController?.session.shellWillReload()
             if let shell { webView.load(URLRequest(url: shell)) }
         }
 

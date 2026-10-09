@@ -159,7 +159,7 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
   - forced bridge failure (harness makes `send` throw once) → label "Find failed", then a successful `next` clears it
   - pause ≥ 2 s between app launches (Launch Services `-600` race seen in S2)
 - [ ] I3.3 Manual (needs a person at the keyboard): Cmd-F and Ctrl-F open the bar with focus in the field; Enter / Shift-Enter / Cmd-G / Shift-Cmd-G move; Esc closes and clears (also when pressed right after typing); the label reads "n of m"
-- [ ] I3.4 code-reviewer loop until clean (max 5); commit on `s3-find`; tick S3 in `design.md`
+- [x] I3.4 (2026-10-09: 2 rounds, `design/s3-review.md`) code-reviewer loop until clean (max 5); commit on `s3-find`; tick S3 in `design.md`
 
 ## Merge conflicts
 

@@ -28,3 +28,12 @@ test("step wraps forward", () => assert.equal(step(2, 3, 1), 0));
 test("step wraps back", () => assert.equal(step(0, 3, -1), 2));
 test("step plain", () => assert.equal(step(1, 3, 1), 2));
 test("step count 0", () => assert.equal(step(0, 0, 1), -1));
+
+const { locator } = createRequire(import.meta.url)("../../Resources/js/find.js");
+test("locator maps ascending offsets to [node, offset]", () => {
+  const at = locator([0, 5, 5, 10]); // node 2 is empty
+  assert.deepEqual(at(0, false), [0, 0]);
+  assert.deepEqual(at(5, true), [0, 5]);   // an end at a boundary stays in the earlier node
+  assert.deepEqual(at(5, false), [2, 0]);  // a start at a boundary goes to the last node there
+  assert.deepEqual(at(12, true), [3, 2]);
+});

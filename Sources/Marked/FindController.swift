@@ -16,6 +16,8 @@ final class FindController: ObservableObject {
             }
         }
     }
+    /// Bumped on every show() so the bar refocuses its field even when already open.
+    @Published private(set) var focusRequest = 0
     let session: FindSession
     private var debounce: Task<Void, Never>?
 
@@ -25,8 +27,6 @@ final class FindController: ObservableObject {
         session.onChange = { [weak self] in self?.view = $0 }
     }
 
-    /// Bumped on every show() so the bar refocuses its field even when already open.
-    @Published private(set) var focusRequest = 0
     func show() { session.open(); focusRequest += 1 }
     func hide() {
         text = ""
