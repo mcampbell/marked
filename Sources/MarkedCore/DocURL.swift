@@ -29,6 +29,17 @@ public enum DocURL {
         URL(string: "\(scheme)://\(appHost)/\(name)")!
     }
 
+    private static let appFiles: [String: (name: String, ext: String, subdirectory: String?)] = [
+        "/base.css": ("base", "css", nil),
+        "/hljs.css": ("hljs-github", "css", "vendor"),
+    ]
+
+    /// Bundle resource to serve for a `marked://app/...` request, or nil → 403.
+    public static func appFile(for url: URL) -> (name: String, ext: String, subdirectory: String?)? {
+        guard url.scheme == scheme, url.host == appHost else { return nil }
+        return appFiles[url.path]
+    }
+
     public static func filePath(from url: URL) -> String? {
         guard url.scheme == scheme, url.host == docHost else { return nil }
         return URLComponents(url: url, resolvingAgainstBaseURL: false)?.path

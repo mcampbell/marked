@@ -26,7 +26,9 @@ struct WebView: NSViewRepresentable {
                                  Self.resource("mermaid.min", "js", subdirectory: "vendor"),
                                  Self.resource("mermaid-hook", "js", subdirectory: "js"),
                                  Self.resource("anchors", "js", subdirectory: "js"),
-                                 Self.resource("highlight", "js", subdirectory: "js")]
+                                 Self.resource("highlight", "js", subdirectory: "js"),
+                                 Self.resource("highlight.min", "js", subdirectory: "vendor"),
+                                 Self.resource("syntax", "js", subdirectory: "js")]
         for s in scripts {
             cfg.userContentController.addUserScript(
                 WKUserScript(source: s, injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: .defaultClient))

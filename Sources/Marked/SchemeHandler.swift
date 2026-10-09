@@ -3,15 +3,15 @@ import WebKit
 
 final class SchemeHandler: NSObject, WKURLSchemeHandler {
     private let shell = Bundle.main.requiredResource("shell", "html")
-    private let css = Bundle.main.requiredResource("base", "css")
 
     func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
         let req = urlSchemeTask.request
         var body: Data?
         var type = ""
         if req.httpMethod == "GET", let url = req.url {
-            if url.host == DocURL.appHost, url.path == "/base.css" {
-                body = css; type = "text/css; charset=utf-8"
+            if let f = DocURL.appFile(for: url) {
+                body = Bundle.main.requiredResource(f.name, f.ext, subdirectory: f.subdirectory)
+                type = "text/css; charset=utf-8"
             } else if url.host == DocURL.docHost, url.lastPathComponent == DocURL.shellName {
                 body = shell; type = "text/html; charset=utf-8"
             } else if url.host == DocURL.docHost, let path = DocURL.imageFile(for: url, probe: Self.probe) {
