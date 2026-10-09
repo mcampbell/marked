@@ -13,7 +13,7 @@ struct WebView: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> WKWebView {
+    func makeNSView(context: Context) -> NSView {
         let c = context.coordinator
         c.setFailure = { [failure = $failure] in failure.wrappedValue = $0 }
         c.setStyleFailure = { [styleFailure = $styleFailure] in styleFailure.wrappedValue = $0 }
@@ -43,12 +43,19 @@ struct WebView: NSViewRepresentable {
         c.tocController = toc
         c.start(web, fileURL: fileURL, find: find.session)
         c.apply(style)
-        return web
+        // Container, not the web view itself: SwiftUI keeps a closed document window's views alive
+        // (dismantleNSView never runs), so on close the coordinator detaches the web view to free it.
+        let box = NSView()
+        web.frame = box.bounds
+        web.autoresizingMask = [.width, .height]
+        box.addSubview(web)
+        c.freeOnClose(web)
+        return box
     }
 
-    func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.apply(style) }
+    func updateNSView(_ nsView: NSView, context: Context) { context.coordinator.apply(style) }
 
-    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
         coordinator.stop()
     }
 
@@ -125,7 +132,27 @@ struct WebView: NSViewRepresentable {
             queue.setStyle(WebView.resource(style.resource, "css", subdirectory: "styles"))
         }
 
-        func stop() { watcher?.stop() }
+        func stop() {
+            watcher?.stop()
+            if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
+            closeObserver = nil
+        }
+
+        private var closeObserver: NSObjectProtocol?
+
+        /// When this web view's window closes: stop polling and drop the web view, which then deallocates
+        /// and closes its page. The closed window itself stays alive (SwiftUI DocumentGroup, macOS 26).
+        func freeOnClose(_ web: WKWebView) {
+            closeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self, weak web] note in
+                let closing = (note.object as AnyObject?).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    guard let web, let window = web.window, closing == ObjectIdentifier(window) else { return }
+                    self?.stop()
+                    web.removeFromSuperview()
+                }
+            }
+        }
 
         /// Follows symlinks: the handler serves the target, so the stamp must change when the target does.
         nonisolated static func mtime(_ path: String) -> Double? {
