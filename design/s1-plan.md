@@ -120,7 +120,7 @@ extension Bundle { func requiredResource(_ name: String, _ ext: String, subdirec
   - write Latin-1 bytes → banner "file is not UTF-8 text"; restore → cleared
   - `touch doc.md` → no render (token-based or render counter unchanged)
   - close window → watcher stopped (no further reads; log counter)
-- [ ] I1.3 code-reviewer loop until clean (max 5); commit on `s1-live`; tick S1 in `design.md`
+- [x] I1.3 code-reviewer loop (clean at round 2, see `s1-review.md`) until clean (max 5); commit on `s1-live`; tick S1 in `design.md`
 
 ## Merge conflicts (S1 vs other slices)
 

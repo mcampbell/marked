@@ -7,19 +7,23 @@ function pickTarget(ranges, line) {
   return next >= 0 ? next : ranges.length - 1;
 }
 
+// Raw HTML in a document can set its own data-sourcepos, so a bad value yields null, not a throw.
+function rangeOf(sourcepos) {
+  const m = /^(\d+):\d+-(\d+):/.exec(sourcepos || "");
+  return m ? { start: +m[1], end: +m[2] } : null;
+}
+
 if (typeof Marked !== "undefined") {
   Marked.hook("position", function scrollToChange({ changedLine }) {
     if (changedLine == null) return;
-    const els = [...document.querySelectorAll("#content [data-sourcepos]")];
-    const ranges = els.map((e) => {
-      const m = e.dataset.sourcepos.match(/^(\d+):\d+-(\d+):/);
-      return { start: +m[1], end: +m[2] };
-    });
-    const el = els[pickTarget(ranges, changedLine)];
+    const blocks = [...document.querySelectorAll("#content [data-sourcepos]")]
+      .map((el) => ({ el, range: rangeOf(el.dataset.sourcepos) }))
+      .filter((b) => b.range);
+    const el = blocks[pickTarget(blocks.map((b) => b.range), changedLine)]?.el;
     if (!el) return;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     el.animate([{ background: "#fff3a0" }, { background: "transparent" }], { duration: 1200 });
   });
 }
 
-if (typeof module !== "undefined") module.exports = { pickTarget };
+if (typeof module !== "undefined") module.exports = { pickTarget, rangeOf };
