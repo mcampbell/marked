@@ -63,7 +63,7 @@ public enum FrontmatterSplit {
 
 ### F1 — split (builder)
 
-- [ ] F1.1 Tests first (no `import Foundation`):
+- [x] F1.1 Tests first (no `import Foundation`):
   - `"---\ntitle: x\n---\n# H"` → text `"---\ntitle: x\n---"`, endLine 3, body `"\n\n\n# H"`
   - closes with `...` → recognized; text ends with `"..."` (closing fence kept as written)
   - unclosed (`"---\na: 1\n# H"`) → `nil`
@@ -75,11 +75,11 @@ public enum FrontmatterSplit {
   - only the first closing fence counts: `"---\na\n---\nb\n---"` → endLine 3
   - multi-line, `<`/`&` in text → returned unescaped (escaping is F2's job)
   - body line count always equals source line count
-- [ ] F1.2 Implement: strip one leading BOM; split the **UTF-8 bytes** on LF keeping empties, as `LineDiff` does (`source.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)`, then `String(decoding:as: UTF8.self)` per line; LF never occurs inside a multi-byte character). Never split `String` on `"\n"`: Swift treats CRLF as one `Character`, so the CRLF fixture would become one line and frontmatter would go undetected (reproduced in review, 2026-10-09); trim one trailing `"\r"` per line for comparison only; find the closing fence; build `text` from original lines 1…endLine (minus their `\r`, BOM dropped); `body` = `endLine` empty lines + the remaining original lines, joined with `"\n"`
+- [x] F1.2 Implement: strip one leading BOM; split the **UTF-8 bytes** on LF keeping empties, as `LineDiff` does (`source.utf8.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)`, then `String(decoding:as: UTF8.self)` per line; LF never occurs inside a multi-byte character). Never split `String` on `"\n"`: Swift treats CRLF as one `Character`, so the CRLF fixture would become one line and frontmatter would go undetected (reproduced in review, 2026-10-09); trim one trailing `"\r"` per line for comparison only; find the closing fence; build `text` from original lines 1…endLine (minus their `\r`, BOM dropped); `body` = `endLine` empty lines + the remaining original lines, joined with `"\n"`
 
 ### F2 — renderer integration (builder)
 
-- [ ] F2.1 Tests first (in `HTMLRendererTests`):
+- [x] F2.1 Tests first (in `HTMLRendererTests`):
   - frontmatter doc → output starts with `<pre class="frontmatter" data-sourcepos="1:1-3:3"><code>---\ntitle: x\n---</code></pre>`
   - body heading keeps its absolute line: `# H` on line 4 → `data-sourcepos="4:1-4:3"`
   - escaping: `a: <b> & "c"` → `a: &lt;b&gt; &amp; &quot;c&quot;`
@@ -88,12 +88,12 @@ public enum FrontmatterSplit {
   - `---` on line 3 of a plain document → no frontmatter block (normal markdown)
   - CRLF regression: `"---\r\ntitle: x\r\n---\r\n# H\r\n"` → frontmatter block present with `<code>---\ntitle: x\n---</code>`, and `# H` keeps `data-sourcepos="4:1-4:3"`
   - existing tests stay green (incl. the `==` code tests)
-- [ ] F2.2 Implement: `FrontmatterSplit.split(source)`; render `body` (or `source` when nil) with the existing cmark code; prepend the block whenever `split` returns one. A small private `escape(_:)` for `& < > "`
+- [x] F2.2 Implement: `FrontmatterSplit.split(source)`; render `body` (or `source` when nil) with the existing cmark code; prepend the block whenever `split` returns one. A small private `escape(_:)` for `& < > "`
 
 ### I4 — integrate + live check (sequential, main loop)
 
-- [ ] I4.1 Merge F1 and F2 (copy files); `make test`; `make install`
-- [ ] I4.2 Fixture `~/tmp/marked fixtures/fm/doc.md`: 4-line frontmatter (incl. `<tag>` and `&`), then 60 paragraphs. Temporary env-guarded harness (not committed):
+- [x] I4.1 Merge F1 and F2 (copy files); `make test`; `make install`
+- [x] I4.2 (2026-10-09: block shows both fences + escaped `<tag> &`, ui-monospace, `1:1-4:3`; append → y 2345; frontmatter edit → y 0; unclosed → no block, `hr`; one page load) Fixture `~/tmp/marked fixtures/fm/doc.md`: 4-line frontmatter (incl. `<tag>` and `&`), then 60 paragraphs. Temporary env-guarded harness (not committed):
   - `pre.frontmatter` exists, its text equals lines 1…N including both fences, computed `font-family` is monospace
   - append at the end → scrolls down (S1 still works with frontmatter)
   - then edit frontmatter line 2 → `scrollY` returns near 0 (target = frontmatter block)
