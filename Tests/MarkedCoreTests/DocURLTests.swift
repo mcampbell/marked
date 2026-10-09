@@ -15,5 +15,6 @@ import Testing
         let u = DocURL.appURL("base.css")
         #expect(u.absoluteString == "marked://app/base.css")
         #expect(DocURL.filePath(from: u) == nil)
+        #expect(DocURL.filePath(from: .init(string: "https://doc/tmp/x.png")!) == nil)
     }
 }

@@ -1,21 +1,22 @@
+import MarkedCore
 import WebKit
 
 final class SchemeHandler: NSObject, WKURLSchemeHandler {
-    private let shell = Bundle.main.url(forResource: "shell", withExtension: "html").flatMap { try? Data(contentsOf: $0) }
-    private let css = Bundle.main.url(forResource: "base", withExtension: "css").flatMap { try? Data(contentsOf: $0) }
+    private let shell = Bundle.main.requiredResource("shell", "html")
+    private let css = Bundle.main.requiredResource("base", "css")
 
     func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
         let req = urlSchemeTask.request
         var body: Data?
         var type = ""
         if req.httpMethod == "GET", let url = req.url {
-            if url.host == "app", url.path == "/base.css" {
+            if url.host == DocURL.appHost, url.path == "/base.css" {
                 body = css; type = "text/css; charset=utf-8"
-            } else if url.host == "doc", url.lastPathComponent == "__marked__.html" {
+            } else if url.host == DocURL.docHost, url.lastPathComponent == DocURL.shellName {
                 body = shell; type = "text/html; charset=utf-8"
             }
         }
-        let url = req.url ?? URL(string: "marked://x/")!
+        let url = req.url ?? DocURL.appURL("")
         guard let body else {
             urlSchemeTask.didReceive(HTTPURLResponse(url: url, statusCode: 403, httpVersion: "HTTP/1.1", headerFields: nil)!)
             urlSchemeTask.didFinish()
@@ -28,4 +29,14 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
+}
+
+extension Bundle {
+    /// A missing resource means a broken bundle, so fail loud instead of showing a blank page.
+    func requiredResource(_ name: String, _ ext: String) -> Data {
+        guard let url = url(forResource: name, withExtension: ext), let data = try? Data(contentsOf: url) else {
+            preconditionFailure("Marked.app is missing Resources/\(name).\(ext)")
+        }
+        return data
+    }
 }
