@@ -1,0 +1,148 @@
+# Marked clone — design
+
+Native macOS markdown reader. Read-only. Live reload with scroll-to-change. Q&A behind each decision: `grill.md`.
+
+## Decisions
+
+- SwiftPM only (no Xcode). `Makefile`: `build`, `test` (Swift Testing needs CLT `-F` flags), `app` (assembles `Marked.app`: binary → `Contents/MacOS`, top-level `Resources/` → `Contents/Resources`, ad-hoc `codesign -s -` over the whole bundle), `run` (`app` + `open`). No SwiftPM `resources:` and no `Bundle.module`; app loads via `Bundle.main`. Info.plist: `UTImportedTypeDeclarations` for `net.daringfireball.markdown` (conforms `public.plain-text`, extensions `md`, `markdown`, `mdown`), `CFBundleDocumentTypes` role Viewer for that UTI only; `MarkdownDocument.readableContentTypes = [UTType(importedAs: "net.daringfireball.markdown")]`. No `public.plain-text` claim (would grab every `.txt`)
+- Min macOS 14. SwiftUI `DocumentGroup(viewing:)` → read-only, multi-window, File>Open, Open Recent, Finder Open With, drag-drop, `open -a` for free
+- `DocumentGroup` supplies only the URL: `ReaderView` reads `@Environment(\.documentConfiguration)?.fileURL`. `MarkdownDocument.init` stores raw bytes, never throws on decode. `FileWatcher` (S0) owns every read: S0 ships `read()` (bytes → UTF-8 decode) used for the first render; non-UTF-8 at first open → S0 renders a plain error message in the page. S1 adds the 0.5s poll, diff, and the reload banner (Q10). Viewer-only document has no save path, so no NSDocument write conflict; any NSDocument reload of its bytes is ignored. File unreadable at open time → system open alert (accepted; no window exists yet)
+- Render: `swiftlang/swift-cmark` pinned `.revision("0c8947bbd58c491c54aae114aca40621cddc8357")` (gfm head 2026-10-09; products `cmark-gfm` + `cmark-gfm-extensions` confirmed in its Package.swift). Extensions: table, strikethrough, autolink, tasklist. Options: `CMARK_OPT_SOURCEPOS | CMARK_OPT_UNSAFE`
+- WKWebView. `allowsContentJavaScript = false`. All app JS in `.defaultClient` world: `WKUserScript(source:injectionTime:forMainFrameOnly:in: .defaultClient)` and every call the async overload `try await callAsyncJavaScript(_:arguments:in: nil, contentWorld: .defaultClient)` (SDK-checked 2026-10-09: async form uses `contentWorld:`; `in: nil, in:` is the completion-handler form). Never page world. Spike (a) proves both run with page JS off; it gates the hook design, so it runs first in S0
+- Load: `WKURLSchemeHandler` for scheme `marked:`, read-only, GET only, two hosts. No `<base>`, no `baseURL`/`loadFileURL` reliance:
+  - `marked://app/base.css` → the only file fetched by URL; shell links it by absolute URL. Handler serves nothing else on this host (403)
+  - JS (`marked.js`, `js/*`, `vendor/mermaid.min.js`) is never fetched: Swift reads it from `Bundle.main` and passes it as `WKUserScript` source. Style CSS (`styles/*`) likewise read by Swift and sent as text via `Marked.setStyle`. Shell HTML read by Swift and served for the reserved name below
+  - `marked://doc/<abs-dir>/__marked__.html` → the shell. Page URL sits in the document dir, so relative URLs (`img.png`, `../img/x.png`) resolve naturally. Reserved name `__marked__.html`; a real file of that name is never served
+  - `marked://doc/<abs-path>` → local image file, added by S7 (rules: see Security). Before S7: 403, so images are broken but the page renders
+  - Path ↔ URL in `MarkedCore/DocURL.swift`: percent-encode each path component (`.urlPathAllowed` minus `#?;`), decode on serve. Round-trip tests: spaces, `#`, `?`, `%`, non-ASCII. Encoding is S0 (shell URL needs it). S7 serve rule: decoded path → `resolvingSymlinksInPath()` → must be an existing regular file with an image extension (Security), else 403. `Content-Type` = `UTType(filenameExtension:)?.preferredMIMEType` (no hand map; checked on macOS 26: `svg` → `image/svg+xml`, `ico` → `image/vnd.microsoft.icon`, `css` → `text/css`); shell → `text/html; charset=utf-8`. `DocURL` test asserts `svg`, `png`, `css`
+- Page = shell HTML loaded once. Each content change → `Marked.render(html, changedLine)` via `callAsyncJavaScript`. No full reloads → no flicker, keep state
+- `Marked.render(html, changedLine)` pipeline: swap `#content` → `await` each registered hook with `{changedLine}`. Render itself does no scroll. Scroll + flash = S1 hook in `js/scroll.js`. Features register hooks; they never edit `marked.js`
+- Hook phases fixed in S0, run in order, hooks within a phase run in parallel: `transform` (S5 mermaid) → `decorate` (S3 find re-apply) → `position` (S1 scroll). `Marked.hook(phase, fn)`. Registration order is irrelevant
+- Watcher: poll mtime+size every 0.5s on the `fileURL` from `documentConfiguration` (a `file://` URL, not `marked:`)
+- Styles: `mono`/`serif`/`sans` CSS (font, max width, line height). Cmd-1/2/3. Global, `@AppStorage`. Default `sans`. Style files set only `:root` variables (`--font`, `--measure`, `--leading`); `base.css` consumes them. Frontmatter rule in `base.css` sets its own monospace font and does not read the variables → no precedence fight. Swap = `Marked.setStyle(cssText)` replaces `<style id="style">` text; no reload
+- File errors (read/decode, S1): keep last good render, red banner, keep polling, auto-recover. Render errors: see Render lifecycle
+
+### Render lifecycle (S0, frozen with `marked.js`)
+
+- S0 owns the coordinator's single `WKNavigationDelegate`: `didFinish` (ready gate) and a minimal `decidePolicyFor`: allow this window's shell URL and same-page fragments, cancel everything else (links dead until S6, but the shell is never navigated away). S6 adds its rules inside this same method; it never installs a second delegate
+- Shell-ready gate: `WKUserScript`s inject at `.atDocumentEnd` (DOM exists). `ready = true` on `webView(_:didFinish:)` for the shell navigation. Before ready, render and style calls only update the pending slot (latest source) and a pending style; on ready, send style then render. No other readiness handling in later slices
+
+- One render in flight per window. Swift `await`s `callAsyncJavaScript("return await Marked.render(html, changedLine)")`, which resolves only after all three phases finish
+- New source while a render is in flight → stored in a single pending slot (latest wins; intermediate saves dropped). On completion, dispatch the pending slot
+- `changedLine` computed by S0 dispatch, at dispatch time, via seam `var changedLine: (_ lastRendered: String, _ next: String) -> Int? = { _, _ in nil }`. S0 ships the `nil` default (no scroll); S1 sets it to `LineDiff.firstChangedLine`. Dispatch is the single owner, so the baseline is always `lastRenderedSource` and coalesced saves scroll to the first change since what the user last saw. First render passes `nil`
+- Hook failures are visible, not silent. Each hook call is wrapped in try/catch; on any failure `Marked.render` still finishes the remaining phases, prepends a visible `<div class="render-error">` (hook name + message) to `#content`, and resolves `{ok: false, errors: [...]}` (else `{ok: true}`). It never rejects, so the queue never stalls. Swift advances `lastRenderedSource` either way (the DOM now shows that source) and logs the errors. Degraded-with-note chosen over keeping the previous render: rollback would need a DOM snapshot per render. Expected Mermaid failures stay inside S5's own fallback and are not hook failures
+
+### Security
+
+Threat: hostile `.md` with raw HTML (allowed per Q8) shows or submits local files.
+- S7: `marked://doc/` serves only image extensions (`png jpg jpeg gif webp avif bmp ico svg`); reserved `__marked__.html` → shell; anything else → 403. `svg` via `<img>` cannot run script
+- S0: shell CSP meta: `default-src 'none'; img-src marked: data: https:; style-src marked: 'unsafe-inline'; font-src marked:; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'`. `unsafe-inline` styles needed for mermaid SVG. Spike (a) also confirms page CSP does not block `.defaultClient` scripts
+- Accepted: remote https images load (tracking pixels possible), same as Marked 2
+- Plain `http:` images do not load: App Transport Security blocks them and the design adds no `NSAllowsArbitraryLoadsInWebContent` exception. CSP matches (no `http:`)
+
+## Layout (Swift conventions)
+
+```
+Package.swift
+Makefile
+Sources/MarkedCore/      # pure, tested
+  HTMLRenderer.swift     # source → HTML (cmark)
+  Frontmatter.swift      # S4
+  LineDiff.swift         # S1
+  DocURL.swift           # S0 path ↔ marked: URL; S7 serve rule + MIME
+  Style.swift            # S2
+Sources/Marked/          # app
+  MarkedApp.swift        # DocumentGroup + .commands
+  MarkdownDocument.swift # FileDocument, read-only, raw bytes only
+  ReaderView.swift       # SwiftUI wrapper, banner, find bar slot
+  WebView.swift          # NSViewRepresentable + coordinator; userScripts list
+  SchemeHandler.swift    # `marked:` scheme: S0 shell + base.css; S7 local images
+  FileWatcher.swift      # S0 `read()`; S1 adds poll
+  FindBar.swift          # S3
+Resources/               # copied by `make app`, not a SwiftPM resource
+  shell.html, base.css, marked.js
+  styles/{mono,serif,sans}.css   # S2
+  js/{scroll,find,mermaid-hook,anchors}.js
+  vendor/mermaid.min.js          # S5, pinned
+Tests/MarkedCoreTests/
+Scripts/Info.plist
+```
+
+## Slices
+
+Sliced design: 8 slices. S0 first. S1–S7 run as parallel streams after S0, one subagent each. (S7 split out of S0 on 2026-10-09 to keep S0 at the scale ceiling.)
+
+| # | Slice | Delivers (usable alone on top of S0) | Touches |
+|---|---|---|---|
+| S0 | Walking skeleton | Open `.md` → rendered page (GFM, sans). Owns first-open lifecycle: `FileWatcher.read()`, shell-ready gate, render dispatch (see Render lifecycle). `.app` bundle. `make test` green. JS bridge + hook registry. `marked:` scheme handler: shell + `base.css` only. Shell CSP. `DocURL` encoding. Spikes: (a) `WKUserScript` + `callAsyncJavaScript` run in `.defaultClient` with page JS off, (c) signed `.app` launches from Finder and loads `shell.html` from `Contents/Resources`, (d) doc in a spaced path renders; `#frag` link reaches `decidePolicyFor` (`linkActivated`) and `.allow` yields a same-document scroll: no reload, `Marked` global and find state survive | all base files |
+| S7 | Local images | Relative images (`img.png`, `../x.png`) load. Serve rule (symlinks resolved, regular file, image ext only), `Content-Type` via `UTType`. Check: fixture dir with a spaced path, both images load; non-image path → 403 | `SchemeHandler` (doc-file route), `DocURL` (serve rule + MIME, tests) |
+| S1 | Live reload + scroll | Save in editor → view updates ≤1s, scrolls to first changed block, flashes it. Missing/unreadable/non-UTF-8 → banner | `FileWatcher` (adds poll to S0's `read()`), `LineDiff`, `js/scroll.js`, `ReaderView` (sets S0 dispatch's `changedLine` seam to `LineDiff.firstChangedLine`) |
+| S2 | Styles | Cmd-1/2/3 swap mono/serif/sans, all windows, persisted | `Style`, `styles/*.css`, `MarkedApp.commands`, `WebView` |
+| S3 | Find | Cmd-F / Ctrl-F bar, highlight all, "n of m", Enter/Cmd-G next, Shift-Cmd-G prev, Esc close. Re-apply after render (hook) | `FindBar`, `js/find.js`, `MarkedApp.commands`, `ReaderView`, `WebView` (find bridge: query/next/prev → match index + count) |
+| S4 | Frontmatter | Line-1 `---` block → verbatim monospace block, any style | `Frontmatter`, `HTMLRenderer`, `base.css` |
+| S5 | Mermaid | ` ```mermaid ` → diagram. Bad diagram → error + source. Offline. Checks: flowchart arrowheads (`url(#marker)`) render; fixture with one good, one syntax-bad, one render-bad diagram → good renders, both bad show source + error, later phases still run | `vendor/mermaid.min.js`, `js/mermaid-hook.js`, `WebView` |
+| S6 | Links | Web link → browser. `.md` link → new window. `#anchor` → in-page | `WebView` coordinator (nav delegate), `js/anchors.js` |
+
+Merge order (by value): S0 → S1 → S7 → S4 → S2 → S3 → S5 → S6. After S0, any order works because S0 fixes the load path (scheme handler), hook phases, render lifecycle (ready gate, serialisation), and JS world; no slice edits another slice's behaviour. Only R1 (scroll after mermaid) needs a joint check once S1 and S5 have both landed, whichever is second.
+
+### Module seams (why parallel works)
+
+- Swift logic per feature = own file in `MarkedCore` with own tests
+- JS per feature = own file, registered as hook in a named phase; `marked.js` render pipeline frozen after S0
+- `WebView.userScripts` = array; each slice appends one line
+- Frontmatter trick: replace frontmatter lines with blank lines before cmark → cmark sourcepos stays absolute → S1 scroll needs no frontmatter knowledge. Prepend `<pre class="frontmatter" data-sourcepos="1:1-N:1">`
+- Mermaid: cmark emits `<pre data-sourcepos><code class="language-mermaid">`; JS hook replaces it with `<div class="mermaid" data-sourcepos=…>` (copies the attribute) holding the SVG. Per node, sequentially: `try { const {svg} = await mermaid.render(uniqueId, src); wrapper.innerHTML = svg } catch (e) { keep <pre> source + error note }`. Covers parse and layout/SVG failures alike; hook never rejects; one diagram at a time (no shared temp-id clash). No `mermaid.run`. S5 confirms behaviour on the pinned version No Swift renderer change → no S4 conflict
+- Find skips text inside mermaid `<svg>`
+
+### S6 navigation rules (`decidePolicyFor navigationAction`)
+
+S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and the ready gate stay untouched. Rules apply in order; first match wins.
+- URL equals this window's shell URL (`marked://doc/<doc-dir>/__marked__.html`, no fragment) → allow. Covers the app-initiated first load (`navigationType == .other`); without it the "Other" rule below reveals the shell in Finder and the window never loads. S6 check: open a fresh window with the delegate installed → page renders
+- Same page URL + fragment → allow. Page URL has no `<base>`, so `#x` is a same-document scroll by default
+- cmark-gfm emits no heading ids → `js/anchors.js` (`decorate` phase) adds GitHub slugger ids to `h1`–`h6`: lowercase, drop punctuation except `-` `_`, keep Unicode letters/digits, spaces → `-`; duplicates get `-1`, `-2`, …; headings that already have an `id` (raw HTML) keep it and reserve it. S6 smoke fixture: two "Intro" headings + "C++ & Go!" → `intro`, `intro-1`, `c--go`
+- `http`, `https`, `mailto` → `NSWorkspace.shared.open`, cancel
+- `marked://doc/<path>` whose URL **path** extension is `md`/`markdown`/`mdown` (query and fragment ignored; new window opens at top) → map to `file://<path>` → `NSDocumentController.shared.openDocument(withContentsOf:display: true)`, cancel. S6 check: this opens a `DocumentGroup` window
+- Other `marked://doc/<path>` (pdf, txt, …) → `NSWorkspace.shared.activateFileViewerSelecting([fileURL])` (reveal in Finder), cancel. Reveal, not open: a hostile link to an `.app` or script must not launch on click
+- Anything else → cancel
+
+### S1 change rules (tested in `LineDiffTests` + manual)
+
+- `LineDiff.firstChangedLine(old, new) -> Int?`: 1-based first line where line arrays differ; equal prefix but different length → `min(count)+1`; identical → `nil` (no scroll, no flash)
+- Whitespace-only changes count as changes (no normalising)
+- Scroll target (JS): deepest element whose `data-sourcepos` range contains the line; none (pure deletion, blank line) → first block starting after it; none after → last block
+- Edit inside frontmatter → frontmatter `<pre>` (has `data-sourcepos`)
+- First render of a window → no scroll, no flash; only reloads scroll
+
+## Merge conflicts (named, accepted)
+
+- C1 `MarkedApp.commands`: S2 + S3 both add menu items
+- C2 `WebView.userScripts` list: S1, S3, S5, S6 each append a line
+- C3 `WebView` coordinator: S2 style injection, S3 find bridge, S6 extends S0's `decidePolicyFor` (S1 no longer touches it: render dispatch is S0)
+- C4 `ReaderView`: S1 adds banner, S3 adds find bar
+
+## Rework (named, accepted)
+
+- R1 Scroll must run after mermaid changes height. Guaranteed by phases (`position` after `transform`); the second of S1/S5 to land runs one manual check: edit inside a diagram → scroll lands on that diagram
+- R2 Design gate, not a fix. If S0 spike (a) fails, stop S0 and return to the user. No fallback is pre-approved: a CSP nonce cannot override `allowsContentJavaScript = false`, so any fallback means enabling page JS (plus strict `script-src`), which changes the Q8 isolation model. Unestimated until decided
+
+## Per-slice check
+
+- Core: Swift Testing in `Tests/MarkedCoreTests` (render, frontmatter edge cases, line diff, style map)
+- UI: manual smoke list in each slice's PR
+
+## Deferred (not in any slice)
+
+- Syntax highlight in code blocks, dark mode, TOC, print/export, TOML `+++`, large-file perf
+
+## Rejected
+
+- Live toggle (Q13: always live)
+- YAML parsing of frontmatter (Q7: verbatim only)
+- Mermaid from CDN (Q12)
+
+## Unresolved questions
+
+Resolved 2026-10-09 (user): local use only, no App Store. Bundle id `com.example.Marked`, app "Marked", ad-hoc `codesign -s -`, no notarization. No root at any build/run phase (see `s0-plan.md`).
+
+Gate S5 only:
+- Mermaid version to pin? (default: latest 11.x at S5 start)
