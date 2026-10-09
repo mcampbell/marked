@@ -16,7 +16,7 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 
 ## Own decisions
 
-- **Pure core** `splitHighlights(text) -> [{text, mark}]` (adjacent parts, concatenated `text` equals the input minus the `==` delimiters). Regex `/==([^\s=](?:.*?[^\s=])?)==/g`: the inner text starts and ends with a char that is neither whitespace nor `=`, lazy (shortest) match, so `== x ==`, `====` and `=====` stay literal, `==x==` (one char) marks, `==a====b==` gives two marks, `a==b==c` marks `b` mid-word. Text with no `==` returns `[{text, mark: false}]` without running the regex
+- **Pure core** `splitHighlights(text) -> [{text, mark}]` (adjacent parts, concatenated `text` equals the input minus the `==` delimiters). Regex `/==([^\s=]|[^\s=][\s\S]*?[^\s=])==/g`: the inner text starts and ends with a char that is neither whitespace nor `=`; the one-char branch is tried first and the multi-char branch is lazy, so the shortest match wins (an optional-group form such as `(?:.*?[^\s=])?` is greedy and swallows `==a== and ==b==` whole: checked in node), so `== x ==`, `====` and `=====` stay literal, `==x==` (one char) marks, `==a====b==` gives two marks, `a==b==c` marks `b` mid-word. Text with no `==` returns `[{text, mark: false}]` without running the regex
 - **DOM walk (`transform` phase):** one `TreeWalker` over text nodes of `#content` whose `data` contains `==`; reject a node inside `pre, code, kbd, samp, div.mermaid, svg, script, style, textarea` (`closest`). Collect first, then replace each node with a fragment of text nodes and `<mark>` elements built with `textContent`. Same text node only: a highlight that spans inline markup (`==a *b* c==`) stays literal (deferred, design)
 - **Phase order:** `transform` hooks run in parallel with Mermaid's. The highlight hook is synchronous and touches only text outside `pre`; Mermaid replaces `pre` blocks and inserts its notes after its first `await`. Disjoint DOM, so registration order does not matter (design)
 - **Find and ids:** `find.js` treats `MARK` as inline (not in its block set), so a query matches across the mark edges. `anchors.js` runs in `decorate`, after `transform`, so `# ==Head==` gets the id `head`
@@ -48,7 +48,7 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 
 ### K1 — highlight.js (builder)
 
-- [ ] K1.1 Node tests first (`Tests/js/highlight.test.mjs`): `a ==b== c` → `a`, mark `b`, `c`; `==x==` → one mark; `==a== and ==b==` → two marks; `==a====b==` → marks `a`, `b`; `a==b==c` → mark `b`; `== x ==`, `====`, `=====`, `==`, `x == y` → one literal part equal to the input; `==a == b==` → one mark `a == b` (pins the lazy rule); `==é 日本==` → one mark; no `==` → one literal part; empty → `[{text: "", mark: false}]`; for every case the parts joined plus removed delimiters equal the input
+- [ ] K1.1 Node tests first (`Tests/js/highlight.test.mjs`): `a ==b== c` → `a`, mark `b`, `c`; `==x==` → one mark; `==a== and ==b==` → two marks; `==a====b==` → marks `a`, `b`; `a==b==c` → mark `b`; `== x ==`, `====`, `=====`, `==`, `x == y` → one literal part equal to the input; `==a == b==` → one mark `a == b` (pins the lazy rule); `==é 日本==` → one mark; `"==a\nb=="` and `"==a\r\nb=="` (escapes in the test) → one mark with the line break kept (same text node, any line; raw HTML keeps newlines); no `==` → one literal part; empty → `[{text: "", mark: false}]`; for every case the parts joined plus removed delimiters equal the input
 - [ ] K1.2 Implement `splitHighlights`
 - [ ] K1.3 DOM hook `markHighlights` per "DOM walk"; `<mark>` via `document.createElement("mark")` + `textContent`, literal parts via `document.createTextNode`
 - [ ] K1.4 `node --test 'Tests/js/*.test.mjs'` green
@@ -56,8 +56,8 @@ One stream: 1 pt, one new JS file plus one `userScripts` line. No parallel fork.
 ### I8 — integrate + live check (sequential, main loop)
 
 - [ ] I8.1 Merge K1; `make test`; `make install`
-- [ ] I8.2 Fixture: frontmatter `title: ==fm==`; `# ==Head==`; `a ==plain== b`; `**==bold==**`; `[==link==](#head)`; `` `==code==` ``; fenced code with `if a == b { ==x== }`; raw `<kbd>==k==</kbd>`, `<samp>==s==</samp>`; `== spaced ==`; `====`; `==<b>a</b>==` (spans markup); raw `<b>==x</b>==`; a Mermaid block with node label `==m==`; raw `<script>/* ==s== */</script>` (inert: inserted by `innerHTML`, page JS off); raw `<textarea>==t==</textarea>`. Temporary env-guarded harness (not committed):
-  - `mark` texts = exactly `Head`, `plain`, `bold`, `link` (document order); no `mark` inside `pre`, `code`, `kbd`, `samp`, `div.mermaid`, `script`, `textarea`
+- [ ] I8.2 Fixture: frontmatter `title: ==fm==`; `# ==Head==`; `a ==plain== b`; `**==bold==**`; `[==link==](#head)`; `` `==code==` ``; fenced code with `if a == b { ==x== }`; raw `<kbd>==k==</kbd>`, `<samp>==s==</samp>`; `== spaced ==`; `====`; `==<b>a</b>==` (spans markup); raw `<b>==x</b>==`; a Mermaid block with node label `==m==`; raw `<script>/* ==s== */</script>` (inert: inserted by `innerHTML`, page JS off); raw `<textarea>==t==</textarea>`; raw HTML block `<p>==multi` newline `line==</p>` (one text node across a line break). Temporary env-guarded harness (not committed):
+  - `mark` texts = exactly `Head`, `plain`, `bold`, `link`, `multi\nline` (document order); no `mark` inside `pre`, `code`, `kbd`, `samp`, `div.mermaid`, `script`, `textarea`
   - the code block, inline code, frontmatter, `kbd`, `samp`, spaced and `====` texts still contain their `==`
   - the `h1` id is `head`
   - injection: a fixture line `==<img src=x onerror=1>==` as escaped text (`==&lt;img…&gt;==`) → the mark's `textContent` is the literal `<img …>`, no `img` element created
