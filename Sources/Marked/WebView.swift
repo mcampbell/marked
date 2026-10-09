@@ -4,7 +4,9 @@ import MarkedCore
 
 struct WebView: NSViewRepresentable {
     let fileURL: URL?
+    let style: Style
     @Binding var failure: String?
+    @Binding var styleFailure: String?
     @Binding var banner: String?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -12,6 +14,7 @@ struct WebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let c = context.coordinator
         c.setFailure = { [failure = $failure] in failure.wrappedValue = $0 }
+        c.setStyleFailure = { [styleFailure = $styleFailure] in styleFailure.wrappedValue = $0 }
         c.setBanner = { [banner = $banner] in banner.wrappedValue = $0 }
         let cfg = WKWebViewConfiguration()
         cfg.defaultWebpagePreferences.allowsContentJavaScript = false
@@ -25,10 +28,11 @@ struct WebView: NSViewRepresentable {
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = c
         c.start(web, fileURL: fileURL)
+        c.apply(style)
         return web
     }
 
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
+    func updateNSView(_ nsView: WKWebView, context: Context) { context.coordinator.apply(style) }
 
     static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
         coordinator.stop()
@@ -47,10 +51,18 @@ struct WebView: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
         var setFailure: (String?) -> Void = { _ in }
         private var queue: RenderQueue?
+        var setStyleFailure: (String?) -> Void = { _ in }
+        private var lastStyle: Style?
         var setBanner: (String?) -> Void = { _ in }
         private var watcher: FileWatcher?
         private var hasRendered = false
         private var shell: URL?
+
+        func apply(_ style: Style) {
+            guard style != lastStyle else { return }
+            lastStyle = style
+            queue?.setStyle(WebView.resource(style.resource, "css", subdirectory: "styles"))
+        }
 
         func stop() { watcher?.stop() }
 
@@ -81,6 +93,15 @@ struct WebView: NSViewRepresentable {
                 NSLog("Marked render failed: \(err)")
                 self?.setFailure("\(err)")
             }
+            queue.sendStyle = { [weak web] css in
+                guard let web else { throw CocoaError(.userCancelled) }
+                _ = try await web.callAsyncJavaScript("Marked.setStyle(css)", arguments: ["css": css], in: nil, contentWorld: .defaultClient)
+            }
+            queue.onStyleFailure = { [weak self] err in
+                NSLog("Marked style failed: \(err)")
+                self?.setStyleFailure("\(err)")
+            }
+            queue.onStyleApplied = { [weak self] in self?.setStyleFailure(nil) }
             web.load(URLRequest(url: shell))
             guard let fileURL else { setBanner("⚠ No file"); return }
             let w = FileWatcher(url: fileURL) { [weak self] ev in
