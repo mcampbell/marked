@@ -20,15 +20,15 @@ Critical path: W13 (spike gates K3) → K1–K3 → I13.
 
 - **Pure current-index rule in JS.** `tocCurrent({tops, height, atEnd}, edge = 8)` → index of the last `top ≤ edge`, else `-1`. Bottom rule (D47): `atEnd` → index of the last `top < height` (inside the viewport) when that is larger. `atEnd` = page can scroll (`scrollHeight > innerHeight`) and `scrollY + innerHeight ≥ scrollHeight − 1`; a doc that fits on one screen never has `atEnd`, so its last heading is not marked at load. Tops are in document order, but the function does not rely on it (scan all, keep last match)
 - **Change-only posting in a pure closure.** `tocSpy(read, post)` → `{update(), reset()}`. `update()` calls `read()` (`{tops, height, atEnd}`), computes `tocCurrent`, posts only when it differs from the last posted value. `reset()` forgets the last value, then `update()` (so it always posts). First `update()` always posts (no last value)
-- **Triggers** (app world only, behind `typeof Marked`): `scroll` on `window` (passive) and a `ResizeObserver` on `#content`, both through one `requestAnimationFrame` gate (at most one update per frame). `ResizeObserver` covers style switch, window resize, mermaid/image reflow, which move headings without a scroll event. A `position`-phase hook `tocSpyReset` calls `reset()` after each render (design). `Marked.render` swaps `innerHTML` only; the `#content` element stays, so the observer survives renders
+- **Triggers** (app world only, behind `typeof Marked`): `scroll` and `resize` on `window` (passive) and a `ResizeObserver` on `#content`, all through one `requestAnimationFrame` gate (at most one update per frame). `ResizeObserver` covers style switch and mermaid/image reflow, which move headings without a scroll event. `resize` covers a height-only window change: content box and `scrollY` stay the same, but `innerHeight` (bottom rule, `atEnd`) changes. A `position`-phase hook `tocSpyReset` calls `reset()` after each render (design). `Marked.render` swaps `innerHTML` only; the `#content` element stays, so the observer survives renders
 - **Post target:** `window.webkit.messageHandlers.toc.postMessage(i)`. Missing (spike failure, node) → no-op guard, never throw inside a hook
 - **Swift validates shape only, not range.** `TOC.current(raw) throws -> Int?`: integer `≥ -1` → `-1` maps to `nil` (no mark), `i ≥ 0` → `i`; anything else throws `TOCError`. Range is checked at display (`i < entries.count`). Reason: the `position` hook posts during the render, before `onRendered` → `refreshTOC` replaces `entries`, so a count check at receipt would compare the new index with the old list and drop valid marks. Changes the design's `current(raw, count:)`; design.md S13 rule updated with this plan
-- **Bool payload not rejected.** JS `true` arrives as `NSNumber` 1 and cannot be told apart from `1` after bridging. The JS only posts integers; page JS is off, so no hostile poster exists. Documented, not tested
+- **Bool payload rejected.** JS `true` bridges to an `NSNumber` that also casts to `Int` 1, but its CF type is Boolean. `TOC.current` throws when `CFGetTypeID(raw as CFTypeRef) == CFBooleanGetTypeID()` (checked before the `Int` cast), so "anything else throws" holds
 - **Handler:** `final class TOCMessages: NSObject, WKScriptMessageHandler { weak var coordinator }` (design's `WeakHandler`, named for its one use). Registered in `makeNSView` on the config before the `WKWebView` is created: `cfg.userContentController.add(TOCMessages(c), contentWorld: .defaultClient, name: "toc")`. The controller holds the handler strongly; the handler holds the coordinator weakly → no cycle. No `removeScriptMessageHandler` needed
 - **Coordinator:** `func tocMessage(_ body: Any)` → `do { tocController?.mark(try TOC.current(body)) } catch { NSLog("Marked toc spy: \(error)") }`
 - **Controller:** `TOCController` gains `@Published private(set) var current: Int?` and `func mark(_ i: Int?)`. `update(entries)` leaves `current` alone (the last post was computed on the new DOM)
 - **Row look:** current row (`i == current`, `i < entries.count`) → `.fontWeight(.semibold)` + `.foregroundStyle(.tint)`. Others unchanged. No background bar (keeps `.plain` button look)
-- **Keep visible:** `ScrollViewReader` around the `List`; rows get `.id(i)`; `.onChange(of: toc.current) { _, c in if let c { proxy.scrollTo(c) } }`, no animation, `anchor: nil` (minimal scroll; I13 checks it does not recenter on every change)
+- **Keep visible:** `ScrollViewReader` around the `List`; rows get `.id(i)`. One `reveal(proxy)`: `if let c = toc.current, c < toc.entries.count { proxy.scrollTo(c) }`, no animation, `anchor: nil` (minimal scroll; I13 checks it does not recenter on every change). Called from `.onChange(of: toc.current)` and from `.onChange(of: toc.entries)` on the next main-queue turn (`DispatchQueue.main.async`, after the new rows are laid out): the `position` post can name a row that only exists after `refreshTOC`, and then `current` does not change again
 - **No loop:** a row click → `go(i)` → page scroll → spy posts `i` → `mark(i)` → sidebar `scrollTo` (sidebar only). Nothing on the mark path calls `go`
 - **Spy runs with the sidebar hidden.** Cost = one rect read per heading per frame while scrolling. `ponytail:` comment in `toc.js` names the ceiling (thousands of headings) and the upgrade (`IntersectionObserver`)
 - **Global names** stay specific: `tocCurrent`, `tocSpy`, `TOC_EDGE`
@@ -56,7 +56,7 @@ final class TOCMessages: NSObject, WKScriptMessageHandler {   // weak var coordi
 // Resources/js/toc.js (added). Pure, exported for node behind the `typeof module` guard:
 //   tocCurrent({tops: number[], height: number, atEnd: boolean}, edge = TOC_EDGE /* 8 */) -> int   // -1 when none
 //   tocSpy(read: () => {tops, height, atEnd}, post: (int) => void) -> {update(), reset()}
-// App world: scroll + ResizeObserver(#content) → rAF gate → spy.update(); hook("position", tocSpyReset)
+// App world: window scroll + resize, ResizeObserver(#content) → rAF gate → spy.update(); hook("position", tocSpyReset)
 ```
 
 ## File ownership
@@ -81,8 +81,8 @@ final class TOCMessages: NSObject, WKScriptMessageHandler {   // weak var coordi
 
 - [ ] K1.1 Tests first (`TOCTests.swift`, no `import Foundation`):
   - `0` → `0`; `7` → `7`; `-1` → `nil`
-  - throws `TOCError`: `-2`; `1.5`; `"1"`; `nil`; `[1]`; `["i": 1]`
-- [ ] K1.2 Implement (`as? Int` on the bridged `NSNumber`; `Double` 1.5 fails the cast)
+  - throws `TOCError`: `-2`; `1.5`; `"1"`; `nil`; `[1]`; `["i": 1]`; `true` (Swift `Bool`)
+- [ ] K1.2 Implement: CF Boolean check first, then `as? Int` (`Double` 1.5 fails the cast). Test files avoid `import Foundation`, so the bridged-`NSNumber` Bool case is checked in I13 (harness posts `true` through `postMessage` once → `tocMessage` logs a `TOCError`, `current` unchanged)
 
 ### K2 — toc.js spy (builder)
 
@@ -91,12 +91,12 @@ final class TOCMessages: NSObject, WKScriptMessageHandler {   // weak var coordi
   - bottom rule, `atEnd: true`, `height: 700`: `[-500, 300, 600]` → `2`; `[-500, 800]` → `0` (800 is below the viewport); `[-500, 700]` → `0` (`top < height`, strict); `[]` → `-1`; `[20, 300]` → `1` (no heading at the edge, still the last visible)
   - `tocSpy`: first `update()` posts even `-1`; same reading again → no post; tops change the answer → one post; tops change but answer same → no post; `reset()` with unchanged tops → posts again; posts are integers
   - existing S10 tests unchanged and green
-- [ ] K2.2 Implement pure functions; app-world wiring (`html` = `document.documentElement`): `const spy = tocSpy(() => ({ tops: [...content().querySelectorAll(TOC_SELECTOR)].map((h) => h.getBoundingClientRect().top), height: innerHeight, atEnd: html.scrollHeight > innerHeight && scrollY + innerHeight >= html.scrollHeight - 1 }), (i) => window.webkit?.messageHandlers?.toc?.postMessage(i))`; rAF gate; `addEventListener("scroll", gate, {passive: true})`; `new ResizeObserver(gate).observe(content())`; `Marked.hook("position", function tocSpyReset() { spy.reset() })`; `ponytail:` cost comment
+- [ ] K2.2 Implement pure functions; app-world wiring (`html` = `document.documentElement`): `const spy = tocSpy(() => ({ tops: [...content().querySelectorAll(TOC_SELECTOR)].map((h) => h.getBoundingClientRect().top), height: innerHeight, atEnd: html.scrollHeight > innerHeight && scrollY + innerHeight >= html.scrollHeight - 1 }), (i) => window.webkit?.messageHandlers?.toc?.postMessage(i))`; rAF gate; `addEventListener("scroll", gate, {passive: true})`; `addEventListener("resize", gate, {passive: true})`; `new ResizeObserver(gate).observe(content())`; `Marked.hook("position", function tocSpyReset() { spy.reset() })`; `ponytail:` cost comment
 - [ ] K2.3 `node --test 'Tests/js/*.test.mjs'` green
 
 ### K3 — app (builder)
 
-- [ ] K3.1 `TOCController.mark` sets `current`. `TOCSidebar`: `ScrollViewReader`, `.id(i)` per row, current-row look and `onChange` scroll per "Own decisions"; mark only when `i < entries.count`
+- [ ] K3.1 `TOCController.mark` sets `current`. `TOCSidebar`: `ScrollViewReader`, `.id(i)` per row, current-row look, `reveal` from both `onChange`s per "Own decisions"; mark only when `i < entries.count`
 - [ ] K3.2 `TOCMessages.userContentController(_:didReceive:)` → `coordinator?.tocMessage(message.body)`; `Coordinator.tocMessage` per "Own decisions". No change to `refreshTOC`, `go`, the ready gate, or `decidePolicyFor`
 - [ ] K3.3 `make app` builds, no warnings; `make test` green
 
@@ -108,10 +108,14 @@ final class TOCMessages: NSObject, WKScriptMessageHandler {   // weak var coordi
   - indexes: One 0, Two 1, Three 2, Four 3, Five 4, Six 5. Scroll so `## Three` top = 0 → `2`; its top = +20 px (below the edge) → `1`; scroll to the end (Six never reaches the edge) → `5` (bottom rule); 1 screen up from the end → `4`
   - `TOCController.go(4)` (click path) → `current == 4`; page `Marked.token` unchanged
   - throttle: 50 `scrollTo` steps across Two…Four in one JS call → posts ≤ 3 (only changes)
-  - live reload: insert `## Zero` before `## Two` while `## Three` is at the top → `current` becomes the new index of Three (`3`) with no user scroll; entries refresh; the marked row is the `Three` row
+  - ground truth (used below): after the page settles (no `scroll` event for 300 ms), the harness evaluates `tocCurrent` on a fresh reading of the live DOM in `.defaultClient` and compares it with `TOCController.current` (`-1` ↔ `nil`)
+  - live reload, real path: with `## Three` at the top, insert `## Zero` before `## Two`. S1 scrolls to the inserted block (first changed line, centered, smooth). After settling: `current` == ground truth and `entries[current].title` is the heading at or above the edge. No assertion that Three stays at the top (S1 behavior, unchanged)
+  - renumbering: after that reload, the harness scrolls `## Three` to the top itself → `current == 3` (was `2` before the insert)
   - replace with headingless text → `current == nil`, "No headings"; restore → mark returns after one scroll
   - one-screen doc (`# A`, `## B`, 2 lines) → `current == nil` at load (no `atEnd` when the page cannot scroll)
-  - style switch (`@AppStorage("style")` sans → mono) at a scroll position where a heading crosses the edge → `current` updates with no scroll call (ResizeObserver path); window resize (`setFrame`) likewise
+  - style switch (`@AppStorage("style")` sans → mono) at a scroll position where a heading crosses the edge → `current` updates with no scroll call (ResizeObserver path); window width resize (`setFrame`) likewise
+  - height-only resize at the end (bottom rule active, `current == 5`): shrink the window height only (`setFrame`, same width) so the page is no longer at its end and Six is below the edge → `current == 4` with no scroll call (`resize` path)
+  - mark before rows: 80-heading fixture, sidebar open; truncate the file to its first 20 headings (settle), then restore all 80. S1 scrolls to the first changed line (after heading 20), so the post is `≥ 20` while `entries.count == 20` (log both in `tocMessage`). After settling: `current` equals the harness ground truth and row `current` is in the sidebar `NSTableView` `rows(in: visibleRect)`
   - two windows (two fixtures): scrolling one leaves the other's `current` unchanged
   - 80-heading fixture, sidebar open: scroll page to bottom → the sidebar `NSTableView` `rows(in: visibleRect)` contains the current row; scroll one heading further → sidebar scroll offset changes by less than one screen (no recenter jump)
   - retain: harness keeps a `weak` ref to a window's coordinator, closes the window, spins the run loop 1 s → ref is `nil`
