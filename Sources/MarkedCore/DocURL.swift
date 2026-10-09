@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 public enum DocURL {
     public static let scheme = "marked"
@@ -37,12 +38,20 @@ public enum DocURL {
 
     /// Resolved path to serve for a `marked://doc/...` request, or nil → 403. W7 stub.
     public static func imageFile(for url: URL, probe: (String) -> FileInfo?) -> String? {
-        nil
+        guard let path = filePath(from: url), !path.hasSuffix("/" + shellName),
+              isImage(path), let info = probe(path), info.isRegularFile, isImage(info.resolvedPath)
+        else { return nil }
+        return info.resolvedPath
+    }
+
+    private static func isImage(_ path: String) -> Bool {
+        imageExtensions.contains(path.split(separator: ".").last.map { $0.lowercased() } ?? "")
     }
 
     /// W7 stub.
     public static func contentType(forPath path: String) -> String {
-        "application/octet-stream"
+        let ext = path.split(separator: ".").last.map { $0.lowercased() } ?? ""
+        return UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
     }
 }
 
