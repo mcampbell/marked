@@ -1,16 +1,45 @@
 import SwiftUI
 import MarkedCore
 
+struct FindCommands: Commands {
+    @FocusedValue(\.findController) private var find
+
+    var body: some Commands {
+        CommandGroup(after: .textEditing) {
+            Button("Find…") { find?.show() }.keyboardShortcut("f").disabled(find == nil)
+            Button("Find Next") { find?.next() }.keyboardShortcut("g").disabled(find == nil)
+            Button("Find Previous") { find?.previous() }.keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(find == nil)
+        }
+    }
+}
+
 @main
 struct MarkedApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("style") private var stored = Style.default.rawValue
+
+    init() {
+        // Ctrl-F -> Cmd-F via the main menu, so the focused scene's Find item handles it.
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
+            guard e.modifierFlags.intersection(.deviceIndependentFlagsMask) == .control,
+                  e.charactersIgnoringModifiers == "f",
+                  let cmd = NSEvent.keyEvent(with: .keyDown, location: e.locationInWindow,
+                                             modifierFlags: .command, timestamp: e.timestamp,
+                                             windowNumber: e.windowNumber, context: nil,
+                                             characters: "f", charactersIgnoringModifiers: "f",
+                                             isARepeat: e.isARepeat, keyCode: e.keyCode),
+                  NSApp.mainMenu?.performKeyEquivalent(with: cmd) == true else { return e }
+            return nil
+        }
+    }
 
     var body: some Scene {
         DocumentGroup(viewing: MarkdownDocument.self) { _ in
             ReaderView()
         }
         .commands {
+            FindCommands()
             CommandGroup(after: .toolbar) {
                 ForEach(Style.allCases, id: \.self) { s in
                     Toggle(s.title, isOn: Binding(

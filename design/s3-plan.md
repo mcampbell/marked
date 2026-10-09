@@ -112,15 +112,15 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
 
 ### K1 — find.js (builder)
 
-- [ ] K1.1 Node tests first (`Tests/js/find.test.mjs`) for `matchOffsets`: case-insensitive; Unicode (`É`/`é`); regex metacharacters literal (`a.b`, `(x)`, `\`); whitespace runs match any whitespace run; non-overlapping (`aa` in `aaaa` → 2); `\u0000` blocks a match; empty query → `[]`; offsets point into the original text
-- [ ] K1.2 `step(index, count, dir)`: forward wrap, back wrap, count 0 → -1; tests
-- [ ] K1.3 DOM layer on the backend W3 chose: text index, offsets → ranges, highlight all + current, scroll current; `set`, `step`, `restore` (no scroll), `clear`, `state` per contract
-- [ ] K1.4 `decorate` hook: with an active query, re-apply after each render (no scroll; keep index or clamp)
-- [ ] K1.5 Export the pure helpers behind the `typeof module` guard (as `scroll.js`)
+- [x] K1.1 Node tests first (`Tests/js/find.test.mjs`) for `matchOffsets`: case-insensitive; Unicode (`É`/`é`); regex metacharacters literal (`a.b`, `(x)`, `\`); whitespace runs match any whitespace run; non-overlapping (`aa` in `aaaa` → 2); `\u0000` blocks a match; empty query → `[]`; offsets point into the original text
+- [x] K1.2 `step(index, count, dir)`: forward wrap, back wrap, count 0 → -1; tests
+- [x] K1.3 DOM layer on the backend W3 chose: text index, offsets → ranges, highlight all + current, scroll current; `set`, `step`, `restore` (no scroll), `clear`, `state` per contract
+- [x] K1.4 `decorate` hook: with an active query, re-apply after each render (no scroll; keep index or clamp)
+- [x] K1.5 Export the pure helpers behind the `typeof module` guard (as `scroll.js`)
 
 ### K2 — FindSession + FindStatus (builder)
 
-- [ ] K2.1 Tests first (no `import Foundation`; a fake `send` that records commands and suspends on a continuation, like the `RenderQueue` tests):
+- [x] K2.1 Tests first (no `import Foundation`; a fake `send` that records commands and suspends on a continuation, like the `RenderQueue` tests):
   - closed → `type` sends nothing; `open` + `type("a")` → `.set("a")`, then the label "1 of 3" from the result
   - label rules: open with empty query → `""`; count 0 → "No results"; failure → "Find failed" and the previous label's status kept
   - latest wins: `type("a")` (suspended), `type("ab")` → resume "ab" first then "a" → label from "ab" only
@@ -130,22 +130,22 @@ public struct FindBridgeNotWired: Error {}     // thrown by the default `send`
   - shell reload with a non-zero match: results showing at index 2, `shellWillReload()` → nothing sent; a suspended old result arriving later is dropped; still nothing sent before content returns; first `renderDidComplete()` → `.restore("a", 2)` (saved index kept across the empty-shell interval)
   - later `renderDidComplete()` while open → `.state`; while closed → nothing; a throwing `.state` → "Find failed", no throw escapes
   - error then success → error cleared
-- [ ] K2.2 Implement per "Own decisions" (revision counter, ready flag, desired query and index, last good status, error)
+- [x] K2.2 Implement per "Own decisions" (revision counter, ready flag, desired query and index, last good status, error)
 
 ### K3 — UI (builder)
 
-- [ ] K3.1 `FindController`: forwards to the session; republishes `session.onChange` into `view`; debounces `text` changes (~150 ms) into `session.type`; `hide()` cancels the pending debounce `Task`, then `session.close()`
-- [ ] K3.2 `FindBar` view: `TextField` bound to `text` (focused on show via `@FocusState`), label, previous/next buttons, close button; `.onSubmit` → next; Shift-Enter → previous (`onKeyPress` with `.shift`); Esc → hide
-- [ ] K3.3 `ReaderView`: own the `FindController` (`@StateObject`, built with `FindSession()`; the coordinator later sets `session.send`); bar in the top `safeAreaInset` above the existing banner, shown when `view.isVisible`; `.focusedSceneValue(\.findController, controller)`; pass the session into `WebView`
-- [ ] K3.4 `MarkedApp`: `CommandGroup(after: .textEditing)` with "Find…" (Cmd-F), "Find Next" (Cmd-G), "Find Previous" (Shift-Cmd-G) on `@FocusedValue(\.findController)`, disabled when nil. Ctrl-F: one local `NSEvent.addLocalMonitorForEvents(matching: .keyDown)` mapping Control-F (no other modifiers) to the focused controller's `show()`, swallowing the event
-- [ ] K3.5 `make app` builds with no warnings in owned files
+- [x] K3.1 `FindController`: forwards to the session; republishes `session.onChange` into `view`; debounces `text` changes (~150 ms) into `session.type`; `hide()` cancels the pending debounce `Task`, then `session.close()`
+- [x] K3.2 `FindBar` view: `TextField` bound to `text` (focused on show via `@FocusState`), label, previous/next buttons, close button; `.onSubmit` → next; Shift-Enter → previous (`onKeyPress` with `.shift`); Esc → hide
+- [x] K3.3 `ReaderView`: own the `FindController` (`@StateObject`, built with `FindSession()`; the coordinator later sets `session.send`); bar in the top `safeAreaInset` above the existing banner, shown when `view.isVisible`; `.focusedSceneValue(\.findController, controller)`; pass the session into `WebView`
+- [x] K3.4 `MarkedApp`: `CommandGroup(after: .textEditing)` with "Find…" (Cmd-F), "Find Next" (Cmd-G), "Find Previous" (Shift-Cmd-G) on `@FocusedValue(\.findController)`, disabled when nil. Ctrl-F: one local `NSEvent.addLocalMonitorForEvents(matching: .keyDown)` mapping Control-F (no other modifiers) to the focused controller's `show()`, swallowing the event
+- [x] K3.5 `make app` builds with no warnings in owned files
 
 ### K4 — WebView bridge (builder)
 
-- [ ] K4.1 `WebView` takes the `FindSession`; the coordinator sets `session.send` to call the matching `Marked.find.*` via `callAsyncJavaScript(…, in: nil, contentWorld: .defaultClient)` and decode `{count, index}`; a decode miss **throws** (the session turns it into "Find failed")
-- [ ] K4.2 `webViewWebContentProcessDidTerminate` → `session.shellWillReload()` beside `queue.shellWillReload()`. No session call on `didFinish`: find waits for content (`renderDidComplete`)
-- [ ] K4.3 `queue.onRendered = { [weak session] in session?.renderDidComplete() }`. Do **not** call it from inside the send closure: only the queue knows whether a completion belongs to the current shell
-- [ ] K4.4 `make app` builds; `make test` green
+- [x] K4.1 `WebView` takes the `FindSession`; the coordinator sets `session.send` to call the matching `Marked.find.*` via `callAsyncJavaScript(…, in: nil, contentWorld: .defaultClient)` and decode `{count, index}`; a decode miss **throws** (the session turns it into "Find failed")
+- [x] K4.2 `webViewWebContentProcessDidTerminate` → `session.shellWillReload()` beside `queue.shellWillReload()`. No session call on `didFinish`: find waits for content (`renderDidComplete`)
+- [x] K4.3 `queue.onRendered = { [weak session] in session?.renderDidComplete() }`. Do **not** call it from inside the send closure: only the queue knows whether a completion belongs to the current shell
+- [x] K4.4 `make app` builds; `make test` green
 
 ### I3 — integrate + live check (sequential, main loop)
 

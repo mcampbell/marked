@@ -29,7 +29,7 @@ struct WebView: NSViewRepresentable {
         }
         let web = WKWebView(frame: .zero, configuration: cfg)
         web.navigationDelegate = c
-        c.start(web, fileURL: fileURL)
+        c.start(web, fileURL: fileURL, find: find)
         c.apply(style)
         return web
     }
@@ -49,6 +49,12 @@ struct WebView: NSViewRepresentable {
         var description: String { "Marked.render returned \(raw); expected {ok, errors}" }
     }
 
+    struct FindBridgeError: Error, CustomStringConvertible {
+        let call: String
+        let raw: String
+        var description: String { "Marked.find.\(call) returned \(raw); expected {count, index}" }
+    }
+
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
         var setFailure: (String?) -> Void = { _ in }
@@ -59,6 +65,7 @@ struct WebView: NSViewRepresentable {
         private var watcher: FileWatcher?
         private var hasRendered = false
         private var shell: URL?
+        private var find: FindSession?
 
         func apply(_ style: Style) {
             // Remember the style only once the queue exists, so an early call cannot mark it as requested.
@@ -75,7 +82,27 @@ struct WebView: NSViewRepresentable {
             return (try? FileManager.default.attributesOfItem(atPath: resolved)[.modificationDate] as? Date)?.timeIntervalSince1970
         }
 
-        func start(_ web: WKWebView, fileURL: URL?) {
+        func start(_ web: WKWebView, fileURL: URL?, find: FindSession) {
+            self.find = find
+            find.send = { [weak web] cmd in
+                guard let web else { throw CocoaError(.userCancelled) }
+                let (js, args, name): (String, [String: Any], String) = switch cmd {
+                case .set(let q): ("return Marked.find.set(q)", ["q": q], "set")
+                case .step(let d): ("return Marked.find.step(d)", ["d": d], "step")
+                case .restore(let q, let i): ("return Marked.find.restore(q, i)", ["q": q, "i": i], "restore")
+                case .clear: ("return Marked.find.clear()", [:], "clear")
+                case .state: ("return Marked.find.state()", [:], "state")
+                }
+                do {
+                    let raw = try await web.callAsyncJavaScript(js, arguments: args, in: nil, contentWorld: .defaultClient)
+                    guard let d = raw as? [String: Any], let count = d["count"] as? Int, let index = d["index"] as? Int
+                    else { throw FindBridgeError(call: name, raw: raw.map { "\($0)" } ?? "nil") }
+                    return FindStatus(count: count, index: index)
+                } catch {
+                    NSLog("Marked find failed: \(error)")
+                    throw error
+                }
+            }
             let shell = DocURL.shellURL(forDocument: fileURL ?? URL(fileURLWithPath: "/untitled.md"))
             self.shell = shell
             let queue = RenderQueue(render: { ImageStamp.apply(HTMLRenderer.render($0), shell: shell, mtime: Self.mtime) }) { [weak self, weak web] html, line in
@@ -90,6 +117,7 @@ struct WebView: NSViewRepresentable {
                 self?.setFailure(nil)   // bridge works again; hook errors show in the page
                 return RenderResult(ok: ok, errors: errors)
             }
+            queue.onRendered = { [weak find] in find?.renderDidComplete() }
             queue.changedLine = LineDiff.firstChangedLine
             self.queue = queue
             queue.onFailure = { [weak self] err in
@@ -129,6 +157,7 @@ struct WebView: NSViewRepresentable {
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             queue?.shellWillReload()
+            find?.shellWillReload()
             if let shell { webView.load(URLRequest(url: shell)) }
         }
 
