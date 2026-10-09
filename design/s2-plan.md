@@ -65,7 +65,7 @@ public func setStyle(_ css: String)
 
 - [ ] W2.1 Branch `s2-styles` from `s4-frontmatter`
 - [ ] W2.2 `Style.swift`: cases real; `default` = `.sans`; `init(stored:)` → `.sans`; `title`/`shortcut`/`resource` placeholders that compile (e.g. `rawValue`, `"0"`)
-- [ ] W2.3 `RenderQueue`: `public var sendStyle: (String) async throws -> Void = { _ in }`, `public func setStyle(_ css: String) {}`
+- [ ] W2.3 `RenderQueue`: every frozen addition, so Y4 builds without Y3: `public var sendStyle: (String) async throws -> Void = { _ in }`, `public var onStyleApplied: () -> Void = {}`, `public var onStyleFailure: (Error) -> Void = { _ in }`, `public func setStyle(_ css: String) {}`
 - [ ] W2.4 `Resources/styles/{mono,serif,sans}.css` each `:root {}`
 - [ ] W2.5 `make test` + `make app` green → commit → fork worktrees
 
@@ -89,9 +89,11 @@ public func setStyle(_ css: String)
   - reload while the style send is suspended: `shellWillReload` + `markReady` → the current style is sent again (new generation) before the re-sent render; then resume the **old** style send with success, and (second test) with a throw → no extra send, no `onStyleApplied`, no `onStyleFailure`, the new shell's in-flight op unaffected
   - style failure: `sendStyle` throws → `onStyleFailure` called once, `onFailure` not called, `onStyleApplied` not called; the pending render is still sent; a later render success does not call `onStyleApplied`
   - no automatic retry after a style failure; the next `setStyle` or a reload + `markReady` sends it again
+  - newer request survives a failed send: send A (suspended), `setStyle(B)`, fail A → `onStyleFailure` once, then B is sent; B succeeds → `onStyleApplied`
+  - newer request survives a successful send: send A (suspended), `setStyle(B)`, A succeeds → B is sent next
   - success → `onStyleApplied` called once
   - no style ever set → `markReady` sends no style; existing render tests stay green
-- [ ] Y3.2 Implement in `RenderQueue`: `currentStyle: String?` (latest requested) and `pendingStyle: String?` (not yet applied in this generation). `setStyle(css)`: set both, `pump()`. `pump()`: guard `ready`, nothing in flight; if `pendingStyle` → dispatch it (clear the slot only on success if no newer style arrived; on failure clear it and call `onStyleFailure`, no retry); else dispatch the pending render as today. Both kinds capture `generation`; stale completions return before touching any state or calling any callback. `shellWillReload` also sets `pendingStyle = currentStyle`
+- [ ] Y3.2 Implement in `RenderQueue`: `currentStyle: String?` (latest requested) and `pendingStyle: String?` (not yet applied in this generation). `setStyle(css)`: set both, `pump()`. `pump()`: guard `ready`, nothing in flight; if `pendingStyle` → dispatch it (on completion, success **or failure**, clear `pendingStyle` only if it still equals the CSS that was sent, so a newer request made during the send is kept and dispatched next; on failure also call `onStyleFailure` — no retry of the failed CSS itself); else dispatch the pending render as today. Both kinds capture `generation`; stale completions return before touching any state or calling any callback. `shellWillReload` also sets `pendingStyle = currentStyle`
 
 ### Y4 — app wiring (builder)
 
