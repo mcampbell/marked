@@ -184,7 +184,7 @@ S6 extends S0's existing delegate method (see Render lifecycle); `didFinish` and
 
 - R1 ✅ (S5 I5.2, 2026-10-09) Scroll must run after mermaid changes height. Guaranteed by phases (`position` after `transform`); the second of S1/S5 to land runs one manual check: edit inside a diagram → scroll lands on that diagram
 - R2 Design gate, not a fix. If S0 spike (a) fails, stop S0 and return to the user. No fallback is pre-approved: a CSP nonce cannot override `allowsContentJavaScript = false`, so any fallback means enabling page JS (plus strict `script-src`), which changes the Q8 isolation model. Unestimated until decided
-- R3 Printed syntax colors. Once S11 and S12 have both landed, the second runs one check: print a highlighted fence to PDF → token colors and the `pre` background show
+- R3 ✅ (2026-10-09, after merging S11 + S12 + S10) Printed syntax colors. Once S11 and S12 have both landed, the second runs one check: print a highlighted fence to PDF → token colors and the `pre` background show
 
 ## Per-slice check
 
