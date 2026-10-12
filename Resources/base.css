@@ -1,6 +1,6 @@
-:root { --font: -apple-system, system-ui, sans-serif; --measure: 46em; --leading: 1.6 }
+:root { --font: -apple-system, system-ui, sans-serif; --leading: 1.6 }
 body { font-family: var(--font); line-height: var(--leading); margin: 0 }
-#content { max-width: var(--measure); margin: 0 auto; padding: 2em 1.5em }
+#content { padding: 2em clamp(1.5em, 5vw, 4em) }
 pre, code { font-family: ui-monospace, Menlo, monospace }
 pre { overflow: auto; background: #f4f4f4; padding: .75em }
 /* Beats hljs.css by link order (same specificity). */
@@ -16,7 +16,7 @@ pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #ee
 div.mermaid { text-align: center; margin: 1em 0 }
 .mermaid-error { color: #c00; font: .85em/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; margin: -.5em 0 1em }
 @media print {
-  #content { max-width: none; padding: 0 }
+  #content { padding: 0 }
   pre { white-space: pre-wrap; overflow-wrap: anywhere }
   pre, div.mermaid, tr, img { break-inside: avoid }
   h1, h2, h3, h4, h5, h6 { break-after: avoid }
