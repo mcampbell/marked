@@ -73,6 +73,13 @@ struct WebView: NSViewRepresentable {
         (webView(in: window)?.navigationDelegate as? Coordinator)?.findController
     }
 
+    /// Text size of the document in `window`: `step` ±1 moves it 10 points, nil resets it (D50).
+    @MainActor static func changeTextSize(in window: NSWindow?, step: Int?) {
+        guard let web = webView(in: window), let c = web.navigationDelegate as? Coordinator else { return }
+        c.textSize = step.map { TextSize.step(c.textSize, by: $0) } ?? TextSize.normal
+        c.applyTextSize(web)
+    }
+
     static func resource(_ name: String, _ ext: String, subdirectory: String? = nil) -> String {
         String(decoding: Bundle.main.requiredResource(name, ext, subdirectory: subdirectory), as: UTF8.self)
     }
@@ -102,6 +109,8 @@ struct WebView: NSViewRepresentable {
         weak var tocController: TOCController?
         /// Bumped per TOC refresh; a reply from an older refresh is dropped.
         private var tocGeneration = 0
+        /// This window only, not stored (D50). Scales text, not diagrams or images.
+        var textSize = TextSize.normal
         /// Runs the side effect of a link click. A seam so a live check can record instead of open.
         var performLink: (LinkAction) -> Void = { action in
             switch action {
@@ -260,8 +269,19 @@ struct WebView: NSViewRepresentable {
             do { tocController?.mark(try TOC.current(body)) } catch { NSLog("Marked toc spy: \(error)") }
         }
 
+        func applyTextSize(_ web: WKWebView) {
+            Task { [weak web, textSize] in
+                do {
+                    _ = try await web?.callAsyncJavaScript(
+                        "document.documentElement.style.fontSize = s", arguments: ["s": "\(textSize)%"],
+                        in: nil, contentWorld: .defaultClient)
+                } catch { NSLog("Marked text size failed: \(error)") }
+            }
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             queue?.markReady()
+            if textSize != TextSize.normal { applyTextSize(webView) }   // shell reload drops the html style
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {

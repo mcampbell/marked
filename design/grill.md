@@ -62,3 +62,4 @@
 - D47 (user) S13 bottom rule: scrollable page scrolled to its end → mark the last heading whose top is inside the viewport (short last sections get marked). One-screen docs: no bottom rule
 - D48 (user) S13 spike: if the `.defaultClient` message handler fails, stop and ask (no pre-approved polling fallback)
 - D49 (user, 2026-10-12) Text width follows the window with a side margin (no per-style max width; replaces the widths in D29). Mermaid diagrams may use the full width but never scale above natural size
+- D50 (user, 2026-10-13) Text size: Cmd-plus (Cmd-= alias) / Cmd-minus step 10 points, Cmd-0 resets; range 50–300%. Text only (root `font-size`), diagrams and images keep their size. Per window, not stored. Cmd keys only

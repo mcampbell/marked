@@ -30,6 +30,13 @@ SHA-256.
   good again.
 - **Styles**: sans (default), serif and mono, with Cmd-1/2/3. The choice
   applies to all windows and stays after a restart.
+- **Full width**: text fills the window width. A side margin grows with the
+  window, up to a limit. Diagrams also grow with the window, but never past
+  their natural size.
+- **Text size**: View > Make Text Bigger (Cmd-plus or Cmd-=), Make Text Smaller
+  (Cmd-minus) and Actual Size (Cmd-0). Each step is 10% of the normal size,
+  from 50% to 300%. Only text changes size: diagrams and images do not. Each
+  window has its own size. A new window starts at 100%.
 - **Find**: Cmd-F or Ctrl-F opens a find bar. It highlights all hits and shows
   "n of m". Enter or Cmd-G goes to the next hit, Shift-Enter or Shift-Cmd-G to
   the previous one, Esc closes the bar. Matching ignores case and works across
