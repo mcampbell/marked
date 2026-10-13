@@ -21,14 +21,19 @@ struct MarkedApp: App {
     @AppStorage("style") private var stored = Style.default.rawValue
 
     init() {
-        // Ctrl-F -> Cmd-F via the main menu: one Find path, and a SwiftUI menu item takes one shortcut.
+        // Aliases via the main menu, because a SwiftUI menu item takes one shortcut:
+        // Ctrl-F -> Cmd-F (one Find path); Cmd-= -> Cmd-+ (bigger text with no Shift).
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
-            guard e.modifierFlags.intersection(.deviceIndependentFlagsMask) == .control,
-                  e.charactersIgnoringModifiers == "f",
+            let alias: String? = switch (e.modifierFlags.intersection(.deviceIndependentFlagsMask), e.charactersIgnoringModifiers) {
+            case (.control, "f"): "f"
+            case (.command, "="): "+"
+            default: nil
+            }
+            guard let alias,
                   let cmd = NSEvent.keyEvent(with: .keyDown, location: e.locationInWindow,
                                              modifierFlags: .command, timestamp: e.timestamp,
                                              windowNumber: e.windowNumber, context: nil,
-                                             characters: "f", charactersIgnoringModifiers: "f",
+                                             characters: alias, charactersIgnoringModifiers: alias,
                                              isARepeat: e.isARepeat, keyCode: e.keyCode),
                   NSApp.mainMenu?.performKeyEquivalent(with: cmd) == true else { return e }
             return nil
@@ -52,6 +57,10 @@ struct MarkedApp: App {
                         set: { if $0 { stored = s.rawValue } }))
                         .keyboardShortcut(KeyEquivalent(s.shortcut))
                 }
+                Divider()
+                Button("Make Text Bigger") { WebView.changeTextSize(in: NSApp.keyWindow, step: 1) }.keyboardShortcut("+")
+                Button("Make Text Smaller") { WebView.changeTextSize(in: NSApp.keyWindow, step: -1) }.keyboardShortcut("-")
+                Button("Actual Size") { WebView.changeTextSize(in: NSApp.keyWindow, step: nil) }.keyboardShortcut("0")
             }
         }
     }

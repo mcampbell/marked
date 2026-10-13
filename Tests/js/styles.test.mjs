@@ -30,3 +30,7 @@ test("content has no width cap, only a side margin", () => {
   assert.ok(!/max-width/.test(rule), rule);
   assert.match(rule, /padding:\s*2em clamp\(1\.5em, 5vw, 4em\)/);
 });
+test("no px font sizes, so text scales with the root size (D50)", () => {
+  const css = read("base.css");
+  assert.ok(!/font(-size)?:[^;}]*\d+px/.test(css), css.match(/font(-size)?:[^;}]*\d+px/)?.[0]);
+});

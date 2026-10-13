@@ -8,7 +8,7 @@ pre code.hljs { background: none; padding: 0 }
 table { border-collapse: collapse }
 th, td { border: 1px solid #ccc; padding: .3em .6em }
 .render-error { border: 2px solid #c00; color: #c00; background: #fee; padding: .5em; margin-bottom: 1em }
-pre.frontmatter { font: 13px/1.4 ui-monospace, Menlo, monospace; background: #eef2f6; border-left: 3px solid #8aa }
+pre.frontmatter { font: .8125em/1.4 ui-monospace, Menlo, monospace; background: #eef2f6; border-left: 3px solid #8aa }
 ::highlight(find-hit) { background: #ffe58a }
 ::highlight(find-current) { background: #ff9632 }
 .find-hit { background: #ffe58a }
