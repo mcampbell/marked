@@ -36,7 +36,8 @@ SHA-256.
 - **Text size**: View > Make Text Bigger (Cmd-plus or Cmd-=), Make Text Smaller
   (Cmd-minus) and Actual Size (Cmd-0). Each step is 10% of the normal size,
   from 50% to 300%. Only text changes size: diagrams and images do not. Each
-  window has its own size. A new window starts at 100%.
+  window has its own size. A new window starts at 100%. When the size is not
+  100%, the title bar shows it under the file name.
 - **Find**: Cmd-F or Ctrl-F opens a find bar. It highlights all hits and shows
   "n of m". Enter or Cmd-G goes to the next hit, Shift-Enter or Shift-Cmd-G to
   the previous one, Esc closes the bar. Matching ignores case and works across

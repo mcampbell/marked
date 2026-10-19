@@ -8,6 +8,7 @@ struct WebView: NSViewRepresentable {
     @Binding var failure: String?
     @Binding var styleFailure: String?
     @Binding var banner: String?
+    @Binding var textSize: Int
     let find: FindController
     let toc: TOCController
 
@@ -18,6 +19,7 @@ struct WebView: NSViewRepresentable {
         c.setFailure = { [failure = $failure] in failure.wrappedValue = $0 }
         c.setStyleFailure = { [styleFailure = $styleFailure] in styleFailure.wrappedValue = $0 }
         c.setBanner = { [banner = $banner] in banner.wrappedValue = $0 }
+        c.showTextSize = { [textSize = $textSize] in textSize.wrappedValue = $0 }
         let cfg = WKWebViewConfiguration()
         cfg.defaultWebpagePreferences.allowsContentJavaScript = false
         cfg.preferences.shouldPrintBackgrounds = true
@@ -110,7 +112,8 @@ struct WebView: NSViewRepresentable {
         /// Bumped per TOC refresh; a reply from an older refresh is dropped.
         private var tocGeneration = 0
         /// This window only, not stored (D50). Scales text, not diagrams or images.
-        var textSize = TextSize.normal
+        var textSize = TextSize.normal { didSet { showTextSize(textSize) } }
+        var showTextSize: (Int) -> Void = { _ in }
         /// Runs the side effect of a link click. A seam so a live check can record instead of open.
         var performLink: (LinkAction) -> Void = { action in
             switch action {
