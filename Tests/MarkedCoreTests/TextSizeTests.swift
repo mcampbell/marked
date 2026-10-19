@@ -13,4 +13,13 @@ struct TextSizeTests {
         #expect(TextSize.step(50, by: -1) == 50)
         #expect(TextSize.step(295, by: 1) == 300)
     }
+
+    @Test func labelHiddenAtNormal() {
+        #expect(TextSize.label(TextSize.normal) == nil)
+    }
+
+    @Test func labelShowsPercentOtherwise() {
+        #expect(TextSize.label(110) == "110%")
+        #expect(TextSize.label(50) == "50%")
+    }
 }

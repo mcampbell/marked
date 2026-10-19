@@ -6,6 +6,7 @@ struct ReaderView: View {
     @State private var failure: String?
     @State private var styleFailure: String?
     @State private var banner: String?
+    @State private var textSize = TextSize.normal
     @AppStorage("style") private var stored = Style.default.rawValue
     @StateObject private var find = FindController(session: FindSession())
     @StateObject private var toc = TOCController()
@@ -20,13 +21,15 @@ struct ReaderView: View {
         } detail: {
             reader
         }
-        .navigationSubtitle([failure.map { "Render failed: \($0)" }, styleFailure.map { "Style failed: \($0)" }]
+        .navigationSubtitle([TextSize.label(textSize), failure.map { "Render failed: \($0)" },
+                             styleFailure.map { "Style failed: \($0)" }]
             .compactMap { $0 }.joined(separator: " · "))
     }
 
     private var reader: some View {
         WebView(fileURL: config?.fileURL, style: Style(stored: stored),
-                failure: $failure, styleFailure: $styleFailure, banner: $banner, find: find, toc: toc)
+                failure: $failure, styleFailure: $styleFailure, banner: $banner, textSize: $textSize,
+                find: find, toc: toc)
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     if find.view.isVisible { FindBar(find: find) }

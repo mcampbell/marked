@@ -47,3 +47,10 @@ Scale: trivial/easy/medium/hard = 0.5/1/2/4. Relative within this session.
 **Grand total: 27.5 firm (22.5 slices + 4 conflicts + 1 rework), plus R2 design gate if spike (a) fails (unestimated).**
 
 S10–S13 add 9.5 (7 slices + 2 conflicts + 0.5 rework).
+
+## D51 text size on titlebar (2026-10-19)
+
+| Item | Size | Points |
+|---|---|---|
+| D51 single slice: `TextSize.label`, subtitle wiring | trivial | 0.5 |
+| Merge conflicts / rework | none | 0 |

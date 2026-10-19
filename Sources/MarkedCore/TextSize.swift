@@ -7,4 +7,9 @@ public enum TextSize {
     public static func step(_ percent: Int, by steps: Int) -> Int {
         min(max(percent + steps * 10, range.lowerBound), range.upperBound)
     }
+
+    /// Titlebar text for `percent` (D51): nil at `normal`, so the titlebar stays clean.
+    public static func label(_ percent: Int) -> String? {
+        percent == normal ? nil : "\(percent)%"
+    }
 }
